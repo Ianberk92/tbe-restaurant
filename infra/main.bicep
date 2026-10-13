@@ -27,6 +27,10 @@ param aadClientId string
 @description('Entra ID app registration client secret.')
 param aadClientSecret string
 
+@secure()
+@description('Optional Google Maps Embed API key for the restaurant map popup (browser key restricted to the site domains and the Maps Embed API). Leave empty to use the keyless embed.')
+param mapsEmbedKey string = ''
+
 param tags object = { app: 'replus-dining-holds', owner: 'executive-office' }
 
 var suffix = uniqueString(resourceGroup().id)
@@ -80,6 +84,7 @@ resource swaSettings 'Microsoft.Web/staticSites/config@2023-01-01' = {
     AAD_CLIENT_ID: aadClientId
     AAD_CLIENT_SECRET: aadClientSecret
     APPLICATIONINSIGHTS_CONNECTION_STRING: insights.properties.ConnectionString
+    GOOGLE_MAPS_EMBED_KEY: mapsEmbedKey
   }
 }
 

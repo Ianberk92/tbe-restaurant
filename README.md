@@ -158,13 +158,32 @@ Send each editor their invitation link. They accept it once while signed in, and
 3. **Sign-in:** add `https://redine.terabase.energy/.auth/login/aad/callback` to the app registration's redirect URIs (keep the default one too).
 4. *(Optional)* In **Static Web App → Custom domains**, set `redine.terabase.energy` as the default domain.
 
+### 7b. Google Maps key for the map popup
+
+The restaurant map popup uses Google's official **Maps Embed API** when the site has a key; without one it falls back to Google's keyless embed (undocumented, may not load). The Embed API is free with no usage limit, but Google requires a billing account on the project.
+
+1. [Google Cloud console](https://console.cloud.google.com/) → create a project (e.g. `REdine`) and attach a billing account.
+2. **APIs & Services → Library** → enable **Maps Embed API**.
+3. **APIs & Services → Credentials → Create credentials → API key**, then edit the key:
+   - **Application restrictions:** Websites → `https://redine.terabase.energy/*` and `https://nice-island-08ba0641e.3.azurestaticapps.net/*`
+   - **API restrictions:** Restrict key → **Maps Embed API** only
+4. Save it as an app setting (the hidden prompt keeps it out of shell history):
+   ```bash
+   read -s "KEY?Maps Embed API key (hidden): "; echo
+   az staticwebapp appsettings set -n replusdining-swa -g rg-replus-dining \
+     --setting-names GOOGLE_MAPS_EMBED_KEY="$KEY" -o none; unset KEY
+   ```
+   If you later re-run `infra/main.bicep`, pass `mapsEmbedKey=<key>` too: the template replaces all app settings.
+
+The key is a browser key: it is served to signed-in users by `GET /api/config` and appears in the map iframe URL, so the website and API restrictions above are what protect it.
+
 ### 8. Smoke test
 
 - [ ] Opening the site in a private window redirects to Microsoft sign-in, and only Terabase accounts can sign in.
 - [ ] A regular user sees "View only", with no Add/Edit/Delete buttons.
 - [ ] A regular user calling `PUT /api/data/reservations/test` (for example from browser dev tools) gets **403**.
 - [ ] An editor sees "You can edit", adds a test hold, changes its status and deletes it.
-- [ ] The **Places** tab lists the restaurants with **Book / Call / Map** buttons, and "Within 15 min" narrows the list.
+- [ ] The **Places** tab lists the restaurants closest-first with **Book / Call / Map** buttons; **Walkable** narrows to 20 minutes or less; **Map** (or tapping a name) opens a map with the route from Central Hall or The LINQ.
 - [ ] **+ Add booking**: picking a restaurant fills in its area and walk time; pick a day, time, party size and save. The **Bookings** tab shows it, and "Just mine" filters to bookings you host.
 - [ ] An editor adds a test restaurant with **+ Add restaurant**, edits it, then removes it.
 - [ ] Export CSV downloads a file.
@@ -193,19 +212,19 @@ Unit tests: `cd api && npm test` (10 tests; no Azure resources needed).
 - **Authorization** is enforced twice. SWA route rules limit `PUT`, `PATCH` and `DELETE` on `/api/data/reservations/*` and `/api/data/nearby/*` to `editor`, and the API checks the role again from the `x-ms-client-principal` header (which SWA sets and clients cannot forge). `areas` can't be written through the API at all.
 - **Input validation:** writes accept only an allow-list of fields per collection (reservations, restaurants) with length limits; restaurant booking types and meals must come from fixed lists. IDs must match `^[A-Za-z0-9_-]{1,64}$`, links must be http(s), and bodies are capped at 32 KB. The front end escapes all data before rendering.
 - **Headers:** CSP (`script-src 'self'`, no inline scripts, no third-party connections), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` and `frame-ancestors 'none'`. The page also sets `noindex`.
-- **Secrets:** the storage connection string and Entra client secret live only in SWA app settings, which are encrypted at rest; they are not in the repo. *Trade-off:* SWA managed functions don't support managed identity, so a storage key is used. If your policy requires managed identity or Key Vault references, deploy the API as a separate Function App with managed identity and link it to the SWA ("bring your own functions"). The code works unchanged; only the connection setup differs.
-- **External resources:** the only one is Google Fonts (Inter and Chivo Mono, the brand web fonts). To remove it, self-host the fonts or delete the `<link>` tags; the page falls back to Arial, the brand's system-font substitute.
+- **Secrets:** the storage connection string, Entra client secret and Google Maps browser key live only in SWA app settings, which are encrypted at rest; they are not in the repo. *Trade-off:* SWA managed functions don't support managed identity, so a storage key is used. If your policy requires managed identity or Key Vault references, deploy the API as a separate Function App with managed identity and link it to the SWA ("bring your own functions"). The code works unchanged; only the connection setup differs.
+- **External resources:** Google Fonts (Inter and Chivo Mono, the brand web fonts) and an embedded Google Maps frame in the restaurant map popup (CSP `frame-src` allows only `www.google.com` and `maps.google.com`; it is loaded only when someone opens a map, and it sees only the public restaurant and LVCC addresses). If the embed stops working, the popup's **Open in Google Maps** link still works. To remove it, self-host the fonts or delete the `<link>` tags; the page falls back to Arial, the brand's system-font substitute.
 
 ## Branding
 
 Styled to the Terabase Brand Guidelines (2023): navy `#1B3359` header, orange `#F75200` accents, Inter / Chivo Mono type. Text colors are shades of the brand palette chosen to meet WCAG AA contrast in light and dark mode (tokens and notes are at the top of `app/index.html`).
 
-Logo files go in `app/brand/` (copy them from SharePoint: *TB Docs → 04. Sales & Marketing → LOGO → Terabase Logo*):
+Logo files are in `app/brand/`, exported from SharePoint (*TB Docs → 04. Sales & Marketing → LOGO → Terabase Logo*):
 
 | File in `app/brand/` | SharePoint source |
 |---|---|
-| `terabase-logo-white.svg` | `Primary/Partial White/Terabase_Primary_Logo_Partial_White.svg` (color mark, white wordmark, for the navy header) |
-| `terabase-mark.svg` | `Icon Mark/Full Color/Terabase_Icon_Mark_Full_Color.svg` (browser tab icon) |
+| `terabase-logo-white.png` | `Primary/Partial White/Terabase_Primary_Logo_Partial_White.png` (color mark, white wordmark, for the navy header) |
+| `terabase-mark.png` | `Icon Mark/Full Color/Terabase_Icon_Mark_Full_Color.png` (browser tab icon) |
 
 If a file is missing the page simply hides the logo.
 - **Rotation:** rotate the storage key and client secret after the event, or simply delete the resource group.

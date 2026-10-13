@@ -4,13 +4,22 @@
   const DAYS = ["2026-11-16","2026-11-17","2026-11-18","2026-11-19"];
   const ACTIVE = new Set(["Hold","Confirmed"]);
   const state = { res: [], nearby: [], areas: [], loaded:false, nearLoaded:false, isOwner:false, db:null, downloads:null,
-    tab:"nearby", nearMode:"Breakfast", openAreas:new Set(), mine:false, showOff:false, me:null, nearF:"", nearMax:"", editing:null, editingEtag:null, editingNear:null, nearDelArmed:false, confirmDel:null, err:"" };
+    tab:"nearby", nearMode:"Breakfast", walkable:false, mapsKey:"", mine:false, showOff:false, todayOnly:false, me:null, editing:null, editingEtag:null, editingNear:null, nearDelArmed:false, confirmDel:null, err:"" };
 
   const $ = s => document.querySelector(s);
   const remember = (k, v) => { try{ localStorage.setItem("redine."+k, JSON.stringify(v)); }catch(_){} };
   const recall = (k, d) => { try{ const v = localStorage.getItem("redine."+k); return v==null ? d : JSON.parse(v); }catch(_){ return d; } };
   state.tab = recall("tab", "nearby") === "bookings" ? "bookings" : "nearby";
   state.mine = !!recall("mine", false);
+  state.walkable = !!recall("walkable", false);
+  /* Today's date in Las Vegas, so "today" is right wherever the viewer's laptop clock is set */
+  const TODAY = (()=>{
+    const q = new URLSearchParams(location.search).get("today");
+    if(q && /^\d{4}-\d{2}-\d{2}$/.test(q)) return q;
+    try{ return new Date().toLocaleDateString("en-CA",{timeZone:"America/Los_Angeles"}); }catch(_){ return new Date().toISOString().slice(0,10); }
+  })();
+  const SHOW_WEEK = DAYS.includes(TODAY);
+  if(SHOW_WEEK){ state.tab = "bookings"; state.todayOnly = true; }
   /* Brand logo files live in app/brand/; hide the image cleanly if one hasn't been added yet */
   document.querySelectorAll("img[data-brand]").forEach(img=>{
     const hide = ()=>{ img.hidden = true; };
@@ -88,20 +97,17 @@
   }
   const byWhen = (a,b) => (a.date||"9").localeCompare(b.date||"9") || (a.time||"99").localeCompare(b.time||"99");
 
+  /* One line, only when bookings need a decision (deadlines, host conflicts, F1 race day, no confirmation #) */
   function renderSummary(){
-    if(!state.loaded){ $("#summary").innerHTML = ""; return; }
-    const act = state.res.filter(r=>ACTIVE.has(r.status));
-    const holds = act.filter(r=>r.status==="Hold").length;
-    const conf = act.filter(r=>r.status==="Confirmed").length;
-    const covers = act.reduce((s,r)=>s+(Number(r.party)||0),0);
-    const attn = state.res.filter(r=>flagsFor(r).length).length;
-    const pl = (n,w) => n+" "+w+(n===1?"":"s");
-    $("#summary").innerHTML = `<span><b>${holds}</b> ${holds===1?"hold":"holds"}</span><span><b>${conf}</b> confirmed</span><span><b>${covers}</b> ${covers===1?"cover":"covers"}</span>${attn?`<span class="attn">${pl(attn,"booking")} need${attn===1?"s":""} attention</span>`:""}`;
+    const attn = state.loaded ? state.res.filter(r=>flagsFor(r).length).length : 0;
+    $("#summary").innerHTML = attn
+      ? `<button type="button" class="attn" data-goto="bookings">${attn} booking${attn===1?"":"s"} need${attn===1?"s":""} attention →</button>`
+      : "";
   }
 
   function statusControl(r){
     if(!state.isOwner) return "";
-    const opts = ["Hold","Confirmed","Released","Cancelled"].map(s=>`<option${s===r.status?" selected":""}>${s}</option>`).join("");
+    const opts = ["Hold","Confirmed","Cancelled"].concat(r.status==="Released"?["Released"]:[]).map(s=>`<option${s===r.status?" selected":""}>${s}</option>`).join("");
     const del = state.confirmDel===r.id
       ? `<button class="btn sm danger" data-act="del-yes" data-id="${esc(r.id)}">Delete for good</button><button class="btn sm" data-act="del-no">Keep</button>`
       : `<button class="btn sm danger" data-act="del" data-id="${esc(r.id)}">Delete</button>`;
@@ -122,7 +128,9 @@
       r.travel ? ["Leave booth", `<b>${esc(leaveBy(r)||"—")}</b> <span class="msg">(${esc(r.travel)} min booth-to-table)</span>`] : null,
       r.notes ? ["Notes", esc(r.notes)] : null
     ].filter(Boolean);
+    const lb = r.date===TODAY && ACTIVE.has(r.status) ? leaveBy(r) : "";
     return `<article class="card is-${esc((r.status||"").toLowerCase())}">
+      ${lb?`<div class="leave">Leave the booth by <b>${esc(lb)}</b></div>`:""}
       <div class="row1"><div><span class="time">${fmtTime(r.time)}</span><span class="meal">${esc(r.meal||"")}</span></div><span class="pill st-${esc(r.status)}">${esc(r.status||"—")}</span></div>
       <div><div class="rname">${esc(r.restaurant||"Untitled")}</div><div class="loc">${(()=>{const a=state.areas.find(x=>x.id===r.area);return a?`<span class="areachip">${esc(a.short||a.name)}</span> `:""})()}${esc(r.location||"")}${map?` · <a href="${esc(map)}" target="_blank" rel="noopener">Map</a>`:""}</div></div>
       ${fl.length?`<div class="flags">${fl.map(f=>`<div class="flag ${f.lvl}">${esc(f.text)}</div>`).join("")}</div>`:""}
@@ -134,6 +142,7 @@
   function emptyState(kind){
     if(!state.loaded) return `<div class="empty"><strong>Loading bookings…</strong>Connecting to the shared tracker.</div>`;
     if(kind==="none") return `<div class="empty"><strong>No bookings yet</strong>${state.isOwner?"Use “+ Add booking”, or pick a spot from Places and choose “+ Booking”.":"No holds have been added yet. Check back closer to the show."}</div>`;
+    if(kind==="today") return `<div class="empty"><strong>Nothing booked for today</strong>Turn off “Today only” to see the rest of the week.</div>`;
     if(kind==="mine") return `<div class="empty"><strong>Nothing hosted by you yet</strong>Turn off “Just mine” to see everyone’s bookings.</div>`;
     return `<div class="empty"><strong>No active bookings</strong>Turn on “Show cancelled” to see released and cancelled ones.</div>`;
   }
@@ -141,12 +150,13 @@
   function viewBookings(){
     const all = [...state.res].sort(byWhen);
     const offCount = all.filter(r=>!ACTIVE.has(r.status)).length;
-    const list = all.filter(r=>(state.showOff || ACTIVE.has(r.status)) && (!state.mine || isMine(r)));
+    const list = all.filter(r=>(state.showOff || ACTIVE.has(r.status)) && (!state.mine || isMine(r)) && (!state.todayOnly || r.date===TODAY));
     let html = `<div class="bkbar">`
+      + (SHOW_WEEK ? `<label class="toggle"><input type="checkbox" id="fl_today"${state.todayOnly?" checked":""}> Today only</label>` : "")
       + (state.me ? `<label class="toggle"><input type="checkbox" id="fl_mine"${state.mine?" checked":""}> Just mine</label>` : "")
       + (offCount ? `<label class="toggle"><input type="checkbox" id="fl_off"${state.showOff?" checked":""}> Show cancelled (${offCount})</label>` : "")
       + `</div>`;
-    if(!list.length) return html + emptyState(!state.res.length ? "none" : state.mine ? "mine" : "active");
+    if(!list.length) return html + emptyState(!state.res.length ? "none" : state.todayOnly ? "today" : state.mine ? "mine" : "active");
     for(const d of [...new Set(list.map(r=>r.date||""))]){
       const items = list.filter(r=>(r.date||"")===d);
       const covers = items.filter(r=>ACTIVE.has(r.status)).reduce((s,r)=>s+(Number(r.party)||0),0);
@@ -162,7 +172,6 @@
     const ten = d.length===11 && d[0]==="1" ? d.slice(1) : d.slice(0,10);
     return ten.length===10 ? "tel:+1"+ten : "";
   }
-  const mapHref = n => safeUrl(n.mapUrl) || "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent([n.name, n.venue, "Las Vegas"].filter(Boolean).join(" "));
 
   function nearCard(n){
     const book = safeUrl(n.bookUrl), tel = telHref(n.phone);
@@ -177,19 +186,21 @@
       n.bookingNote ? `<div><span class="k">Booking</span>${esc(n.bookingNote)}</div>` : "",
       n.phone ? `<div><span class="k">Phone</span><span class="mono">${esc(n.phone)}</span></div>` : "",
       n.route ? `<div><span class="k">Route</span>${esc(n.route)}</div>` : "",
-      legs.length ? `<div><span class="k">Time</span>${legs.join(" + ")}${n.totalBusy?` · up to ${esc(n.totalBusy)} min when busy`:""}</div>` : ""
+      legs.length ? `<div><span class="k">Time</span>${legs.join(" + ")}${n.totalBusy?` · up to ${esc(n.totalBusy)} min when busy`:""}</div>` : "",
+      ar && ar.getThere && ar.getThere!=="Already there" ? `<div><span class="k">Area tip</span>${esc(ar.getThere)}</div>` : "",
+      ar && ar.f1 && ar.f1Risk ? `<div><span class="k">F1 week</span>${esc(ar.f1)}</div>` : ""
     ].join("");
     const acts = [];
     if(book) acts.push(`<a class="btn sm primary" href="${esc(book)}" target="_blank" rel="noopener">Book</a>`);
     if(tel) acts.push(`<a class="btn sm" href="${esc(tel)}">Call</a>`);
-    acts.push(`<a class="btn sm" href="${esc(mapHref(n))}" target="_blank" rel="noopener">Map</a>`);
+    acts.push(`<button type="button" class="btn sm" data-act="map" data-id="${esc(n.id)}">Map</button>`);
     const own = state.isOwner
       ? `<div class="cardfoot"><button class="btn sm" data-act="usenear" data-id="${esc(n.id)}" title="Log a booking you've made here">+ Booking</button><button class="btn sm" data-act="editnear" data-id="${esc(n.id)}">Edit</button></div>`
       : "";
     return `<article class="card ncard">
-        <div class="row1"><div class="rname">${esc(n.name)}</div><span class="pill bk-${esc(n.booking)}">${esc(BADGE[n.booking]||n.booking||"")}</span></div>
+        <div class="row1"><button type="button" class="rname link" data-act="map" data-id="${esc(n.id)}">${esc(n.name)}</button><span class="pill bk-${esc(n.booking)}">${esc(BADGE[n.booking]||n.booking||"")}</span></div>
         ${n.total?`<div class="big">${esc(n.total)}<small>min from booth</small></div>`:""}
-        <div class="loc">${ar?`<span class="areachip">${esc(ar.short||ar.name)}</span>`:""}${esc(n.venue||"")}</div>
+        <div class="loc">${ar?`<span class="areachip">${esc(ar.short||ar.name)}${ar.f1Risk?" · F1 zone":""}</span>`:""}${esc(n.venue||"")}</div>
         ${n.watch?`<div class="watch">${esc(n.watch)}</div>`:""}
         <div class="acts">${acts.join("")}</div>
         ${extra?`<details class="more"><summary>Details</summary><div class="moreb">${extra}</div></details>`:""}
@@ -197,48 +208,72 @@
       </article>`;
   }
 
-  /* Meal views: breakfast, dinner and drinks are grouped by area (where guests stay);
-     lunch is a short closest-first list because the booth lunch is catered. */
+  /* Places: one row of filters and a single list, closest to Central Hall first */
+  const WALKABLE_MIN = 20;
   const MEALS = [
-    ["Breakfast","Breakfast","Grouped by area, closest to Central Hall first. Best when the guest is staying at that hotel."],
-    ["Dinner","Dinner","Grouped by area, closest to Central Hall first. Tap an area to see its restaurants."],
-    ["Drinks","Drinks","Bars for casual customer drinks after the show floor closes."],
-    ["Lunch","Lunch","Booth lunch is catered, so important lunch meetings happen at the booth. These are for overflow or a quick team bite, closest first."]
+    ["Breakfast","Best when the guest is staying at that hotel."],
+    ["Lunch","Booth lunch is catered; these are for overflow or a quick team bite."],
+    ["Dinner",""],
+    ["Drinks","For casual customer drinks after the show floor closes."]
   ];
   function viewNearby(){
     const mode = MEALS.some(m=>m[0]===state.nearMode) ? state.nearMode : "Breakfast";
-    const seg = MEALS.map(([k,l])=>`<button class="segb" data-near="${k}" aria-pressed="${mode===k}">${l}</button>`).join("");
-    const opts = [["","Any booking type"],["Reservable","Book ahead"],["Walk-in","Walk in"],["Unconfirmed","Call first"],["Grab-and-go","Grab & go"]];
-    /* "Close enough": cap on the typical booth-to-table time (the card's headline number) */
-    const maxOpts = [["","Any distance"],["15","Within 15 min"],["20","Within 20 min"],["25","Within 25 min"]];
-    let html = `<div class="nearbar"><div class="seg" role="group" aria-label="Meal">${seg}</div><select id="fl_near" aria-label="Filter by booking type">${opts.map(([v,l])=>`<option value="${v}"${v===state.nearF?" selected":""}>${l}</option>`).join("")}</select><select id="fl_nearmax" aria-label="Filter by time from your booth">${maxOpts.map(([v,l])=>`<option value="${v}"${v===state.nearMax?" selected":""}>${l}</option>`).join("")}</select>${state.isOwner?`<button class="btn sm" data-act="addnear">+ Add restaurant</button>`:""}</div>`;
+    const seg = MEALS.map(([k])=>`<button class="segb" data-near="${k}" aria-pressed="${mode===k}">${k}</button>`).join("");
+    let html = `<div class="nearbar"><div class="seg" role="group" aria-label="Meal">${seg}</div>`
+      + `<label class="toggle"><input type="checkbox" id="fl_walk"${state.walkable?" checked":""}> Walkable (${WALKABLE_MIN} min or less)</label>`
+      + (state.isOwner?`<button class="btn sm" data-act="addnear">+ Add restaurant</button>`:"") + `</div>`;
     if(!state.nearLoaded) return html + `<div class="empty"><strong>Loading restaurants…</strong></div>`;
     const bk = {"Reservable":0,"Unconfirmed":1,"Walk-in":2,"Grab-and-go":3};
-    const maxMin = Number(state.nearMax) || Infinity;
-    const items = state.nearby.filter(n=>(!state.nearF || n.booking===state.nearF) && Array.isArray(n.fit) && n.fit.includes(mode) && (Number(n.total)||Infinity) <= maxMin);
-    html += `<p class="lead">${esc(MEALS.find(m=>m[0]===mode)[2])}</p>`;
-    if(!items.length) return html + `<div class="empty">No ${esc(mode.toLowerCase())} spots match this filter.</div>`;
-    if(mode==="Lunch"){
-      const list = items.sort((a,b)=>(Number(a.total)||99)-(Number(b.total)||99) || (bk[a.booking]??4)-(bk[b.booking]??4));
-      return html + `<div class="near">${list.map(nearCard).join("")}</div>`;
-    }
-    const areas = [...state.areas].sort((x,y)=>(x.order||0)-(y.order||0)).filter(ar=>items.some(n=>n.area===ar.id));
-    html += areas.map(ar=>{
-      const list = items.filter(n=>n.area===ar.id).sort((x,y)=>(bk[x.booking]??4)-(bk[y.booking]??4) || (Number(x.total)||99)-(Number(y.total)||99));
-      const open = state.openAreas.has(ar.id);
-      return `<details class="area" data-area="${esc(ar.id)}"${open?" open":""}>
-        <summary><span class="an">${esc(ar.name)}</span><span class="ac">${list.length} place${list.length===1?"":"s"}${ar.f1Risk?` · <span class="f1tag">F1 zone</span>`:""}</span></summary>
-        <div class="ab">
-          <p>${esc(ar.blurb||"")}</p>
-          ${ar.getThere?`<p><span class="k">Getting there</span>${esc(ar.getThere)}</p>`:""}
-          ${ar.whoStays?`<p><span class="k">Who stays here</span>${esc(ar.whoStays)}</p>`:""}
-          ${ar.f1?`<p class="f1note"><span class="k">F1 week</span>${esc(ar.f1)}</p>`:""}
-          <div class="near">${list.map(nearCard).join("")}</div>
-        </div></details>`;
-    }).join("");
+    const items = state.nearby
+      .filter(n=>Array.isArray(n.fit) && n.fit.includes(mode) && (!state.walkable || (Number(n.total)||Infinity) <= WALKABLE_MIN))
+      .sort((a,b)=>(Number(a.total)||99)-(Number(b.total)||99) || (bk[a.booking]??4)-(bk[b.booking]??4) || String(a.name).localeCompare(String(b.name)));
+    const tip = MEALS.find(m=>m[0]===mode)[1];
+    html += `<p class="lead">Closest to Central Hall first.${tip?" "+esc(tip):""}</p>`;
+    if(!items.length) return html + `<div class="empty">No ${esc(mode.toLowerCase())} spots within ${WALKABLE_MIN} minutes. Turn off “Walkable” to see more.</div>`;
+    html += `<div class="near">${items.map(nearCard).join("")}</div>`;
     html += `<p class="note">Times, hours and booking policies are estimates from public listings (October 2026). Confirm before relying on them.</p>`;
     return html;
   }
+
+  /* ---------- Map popup ----------
+     Shows the route from Central Hall (or the team hotel) to the restaurant in an embedded Google map,
+     with the hotels around it. Uses Google's official Maps Embed API when the site has a key
+     (app setting GOOGLE_MAPS_EMBED_KEY, served by /api/config); otherwise Google's keyless embed.
+     The "Open in Google Maps" link uses Google's documented directions URL either way. */
+  const ORIGINS = {
+    lvcc: { label:"Central Hall", q:"Las Vegas Convention Center Central Hall, 3150 Paradise Rd, Las Vegas, NV 89109" },
+    linq: { label:"The LINQ", q:"The LINQ Hotel, 3535 S Las Vegas Blvd, Las Vegas, NV 89109" }
+  };
+  const WALK_AREAS = new Set(["lvcc","paradise","westgate"]);
+  let mapPlace = null, mapFrom = "lvcc";
+  function drawMap(){
+    const n = mapPlace; if(!n) return;
+    const dest = [n.name, n.venue, "Las Vegas, NV"].filter(Boolean).join(", ");
+    const walk = WALK_AREAS.has(n.area) || mapFrom==="linq" && n.area==="linq";
+    const o = ORIGINS[mapFrom];
+    $("#mapFrame").src = state.mapsKey
+      ? "https://www.google.com/maps/embed/v1/directions?" + new URLSearchParams({key:state.mapsKey, origin:o.q, destination:dest, mode: walk?"walking":"transit"})
+      : "https://maps.google.com/maps?" + new URLSearchParams({saddr:o.q, daddr:dest, ...(walk?{dirflg:"w"}:{}), output:"embed"});
+    $("#mapOpen").href = "https://www.google.com/maps/dir/?" + new URLSearchParams({api:"1", origin:o.q, destination:dest, travelmode: walk?"walking":"transit"});
+    document.querySelectorAll("#mapDlg [data-from]").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.from===mapFrom)));
+    const ar = state.areas.find(x=>x.id===n.area);
+    $("#mapNote").textContent = mapFrom==="lvcc" && n.route ? "How the team gets there: " + n.route
+      : ar && ar.getThere && ar.getThere!=="Already there" ? ar.getThere : "";
+  }
+  function openMap(n){
+    mapPlace = n; mapFrom = "lvcc";
+    $("#mapTitle").textContent = n.name;
+    $("#mapSub").textContent = [n.total ? n.total+" min from your booth" : "", n.venue].filter(Boolean).join(" · ");
+    drawMap();
+    const dlg = $("#mapDlg");
+    if(typeof dlg.showModal === "function") dlg.showModal(); else window.open($("#mapOpen").href, "_blank", "noopener");
+  }
+  $("#mapDlg").addEventListener("click", e=>{
+    const b = e.target.closest("[data-from]"); if(b){ mapFrom = b.dataset.from; drawMap(); return; }
+    if(e.target === $("#mapDlg")) $("#mapDlg").close();   /* click on the backdrop */
+  });
+  $("#mapClose").addEventListener("click", ()=>$("#mapDlg").close());
+  $("#mapDlg").addEventListener("close", ()=>{ $("#mapFrame").src = "about:blank"; mapPlace = null; });
 
   function render(){
     renderSummary();
@@ -287,6 +322,9 @@
     state.editingEtag = r ? r.etag : null;
     $("#formTitle").textContent = r ? "Edit booking" : "Add booking";
     const src = r || prefill || {};
+    const rel = [...$("#f_status").options].find(o=>o.value==="Released");
+    if(src.status==="Released" && !rel) $("#f_status").add(new Option("Released","Released"));
+    else if(src.status!=="Released" && rel) rel.remove();
     for(const [k,id] of Object.entries(FIELDS)){
       const el = document.getElementById(id);
       el.value = src[k] ?? (k==="status" ? "Hold" : k==="host" && !r && state.me ? state.me.display : "");
@@ -389,22 +427,19 @@
   });
 
   /* ---------- Events ---------- */
+  $("#summary").addEventListener("click", e=>{ if(!e.target.closest("[data-goto]")) return; state.tab="bookings"; remember("tab", state.tab); state.showOff=false; state.mine=false; render(); $("#view").scrollIntoView({block:"start"}); });
   $("#tabs").addEventListener("click", e=>{ const b=e.target.closest(".tab"); if(!b) return; state.tab=b.dataset.tab; remember("tab", state.tab); state.confirmDel=null; render(); });
   $("#view").addEventListener("change", async e=>{
     const t = e.target;
     if(t.id==="fl_mine"){ state.mine=t.checked; remember("mine", state.mine); render(); }
     else if(t.id==="fl_off"){ state.showOff=t.checked; render(); }
-    else if(t.id==="fl_near"){ state.nearF=t.value; render(); }
-    else if(t.id==="fl_nearmax"){ state.nearMax=t.value; render(); }
+    else if(t.id==="fl_walk"){ state.walkable=t.checked; remember("walkable", state.walkable); render(); }
+    else if(t.id==="fl_today"){ state.todayOnly=t.checked; render(); }
     else if(t.dataset.act==="status" && state.db && state.isOwner){
       try{ await state.db.collection("reservations").doc(t.dataset.id).update({status:t.value, updatedAt:new Date().toISOString()}); }
       catch(err){ state.err="Status change didn’t save. Try again."; render(); }
     }
   });
-  $("#view").addEventListener("toggle", e=>{
-    const d = e.target; if(!d.matches || !d.matches("details.area")) return;
-    if(d.open) state.openAreas.add(d.dataset.area); else state.openAreas.delete(d.dataset.area);
-  }, true);
   $("#view").addEventListener("click", async e=>{
     const sb = e.target.closest("[data-near]");
     if(sb){ state.nearMode = sb.dataset.near; render(); return; }
@@ -420,6 +455,7 @@
       catch(err){ state.err = err && err.status===412 ? "Someone else changed that reservation, so it wasn’t deleted. Check it and try again." : "Delete didn’t go through. Try again."; render(); }
     }
     else if(act==="addnear"){ openNearForm(null); }
+    else if(act==="map"){ const n = state.nearby.find(x=>x.id===id); if(n) openMap(n); }
     else if(act==="editnear"){ const n = state.nearby.find(x=>x.id===id); if(n) openNearForm(n); }
     else if(act==="usenear"){
       const n = state.nearby.find(x=>x.id===id); if(!n) return;
@@ -453,6 +489,11 @@
     });
     if(!res.ok){ const err = new Error("HTTP "+res.status); err.status = res.status; throw err; }
     return res.status === 204 ? null : res.json();
+  }
+  async function apiCallRaw(url){
+    const res = await fetch(url, {credentials:"same-origin", cache:"no-store"});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    return res.json();
   }
   async function loadAll(){
     try{
@@ -507,10 +548,11 @@
       const a = document.createElement("a"); a.href = url; a.download = filename;
       document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 1000);
     }};
-    $("#role").innerHTML = (state.isOwner ? "You can <b>edit</b> · others view only" : "View only") + ` · <a href="/.auth/logout" class="signout">Sign out</a>`;
+    $("#role").innerHTML = (state.isOwner ? "<b>Editor</b>" : "View only") + ` · <a href="/.auth/logout" class="signout">Sign out</a>`;
     $("#addBtn").hidden = !state.isOwner;
     $("#exportBtn").hidden = false;
     await loadAll();
+    try{ const c = await apiCallRaw("/api/config"); state.mapsKey = (c && c.mapsEmbedKey) || ""; }catch(_){}   /* optional: keyless map if missing */
     setInterval(loadAll, 30000);           /* pick up changes made on other devices */
     setInterval(()=>{ if(state.loaded && $("#formPanel").hidden && $("#nearPanel").hidden) render(); }, 10*60*1000);
   })();
