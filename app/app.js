@@ -192,7 +192,14 @@
       ar && ar.f1 && ar.f1Risk ? `<div><span class="k">F1 week</span>${esc(ar.f1)}</div>` : ""
     ].join("");
     const acts = [];
-    if(book) acts.push(`<a class="btn sm primary" href="${esc(book)}" target="_blank" rel="noopener">Book</a>`);
+    if(book){
+      /* A link shared by several places is a hotel-wide booking page (e.g. Fontainebleau's): say so */
+      const shared = state.nearby.filter(x=>safeUrl(x.bookUrl)===book).length > 1;
+      const where = n.hotel || n.venue || "the hotel";
+      acts.push(shared
+        ? `<a class="btn sm primary" href="${esc(book)}" target="_blank" rel="noopener" title="${esc(where)} books all its restaurants on one page; choose ${esc(n.name)} there">Book via ${esc(where)}</a>`
+        : `<a class="btn sm primary" href="${esc(book)}" target="_blank" rel="noopener">Book</a>`);
+    }
     if(tel) acts.push(`<a class="btn sm" href="${esc(tel)}">Call</a>`);
     acts.push(`<button type="button" class="btn sm" data-act="map" data-id="${esc(n.id)}">Map</button>`);
     const own = state.isOwner
