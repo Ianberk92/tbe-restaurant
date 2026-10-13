@@ -144,3 +144,18 @@ test('validation catches bad input', async () => {
   const r = await handler(req('GET', { collection: 'reservations', id: '../etc' }, { roles: [] }), ctx);
   assert.equal(r.status, 400);
 });
+
+test('config returns the Maps embed key only to signed-in users, and only if well-formed', async () => {
+  const { handler: config } = require('../src/functions/config');
+  process.env.GOOGLE_MAPS_EMBED_KEY = 'AIzaSyTestKey_0123456789abcdefghij';
+  assert.equal((await config(req('GET', {}))).status, 401);
+  let r = await config(req('GET', {}, { roles: [] }));
+  assert.equal(r.status, 200);
+  assert.equal(r.jsonBody.mapsEmbedKey, 'AIzaSyTestKey_0123456789abcdefghij');
+  process.env.GOOGLE_MAPS_EMBED_KEY = 'not a key"><script>';
+  r = await config(req('GET', {}, { roles: [] }));
+  assert.equal(r.jsonBody.mapsEmbedKey, '');
+  delete process.env.GOOGLE_MAPS_EMBED_KEY;
+  r = await config(req('GET', {}, { roles: [] }));
+  assert.equal(r.jsonBody.mapsEmbedKey, '');
+});

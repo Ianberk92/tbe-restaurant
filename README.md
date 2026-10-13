@@ -158,6 +158,25 @@ Send each editor their invitation link. They accept it once while signed in, and
 3. **Sign-in:** add `https://redine.terabase.energy/.auth/login/aad/callback` to the app registration's redirect URIs (keep the default one too).
 4. *(Optional)* In **Static Web App → Custom domains**, set `redine.terabase.energy` as the default domain.
 
+### 7b. Google Maps key for the map popup
+
+The restaurant map popup uses Google's official **Maps Embed API** when the site has a key; without one it falls back to Google's keyless embed (undocumented, may not load). The Embed API is free with no usage limit, but Google requires a billing account on the project.
+
+1. [Google Cloud console](https://console.cloud.google.com/) → create a project (e.g. `REdine`) and attach a billing account.
+2. **APIs & Services → Library** → enable **Maps Embed API**.
+3. **APIs & Services → Credentials → Create credentials → API key**, then edit the key:
+   - **Application restrictions:** Websites → `https://redine.terabase.energy/*` and `https://nice-island-08ba0641e.3.azurestaticapps.net/*`
+   - **API restrictions:** Restrict key → **Maps Embed API** only
+4. Save it as an app setting (the hidden prompt keeps it out of shell history):
+   ```bash
+   read -s "KEY?Maps Embed API key (hidden): "; echo
+   az staticwebapp appsettings set -n replusdining-swa -g rg-replus-dining \
+     --setting-names GOOGLE_MAPS_EMBED_KEY="$KEY" -o none; unset KEY
+   ```
+   If you later re-run `infra/main.bicep`, pass `mapsEmbedKey=<key>` too: the template replaces all app settings.
+
+The key is a browser key: it is served to signed-in users by `GET /api/config` and appears in the map iframe URL, so the website and API restrictions above are what protect it.
+
 ### 8. Smoke test
 
 - [ ] Opening the site in a private window redirects to Microsoft sign-in, and only Terabase accounts can sign in.
@@ -193,7 +212,7 @@ Unit tests: `cd api && npm test` (10 tests; no Azure resources needed).
 - **Authorization** is enforced twice. SWA route rules limit `PUT`, `PATCH` and `DELETE` on `/api/data/reservations/*` and `/api/data/nearby/*` to `editor`, and the API checks the role again from the `x-ms-client-principal` header (which SWA sets and clients cannot forge). `areas` can't be written through the API at all.
 - **Input validation:** writes accept only an allow-list of fields per collection (reservations, restaurants) with length limits; restaurant booking types and meals must come from fixed lists. IDs must match `^[A-Za-z0-9_-]{1,64}$`, links must be http(s), and bodies are capped at 32 KB. The front end escapes all data before rendering.
 - **Headers:** CSP (`script-src 'self'`, no inline scripts, no third-party connections), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` and `frame-ancestors 'none'`. The page also sets `noindex`.
-- **Secrets:** the storage connection string and Entra client secret live only in SWA app settings, which are encrypted at rest; they are not in the repo. *Trade-off:* SWA managed functions don't support managed identity, so a storage key is used. If your policy requires managed identity or Key Vault references, deploy the API as a separate Function App with managed identity and link it to the SWA ("bring your own functions"). The code works unchanged; only the connection setup differs.
+- **Secrets:** the storage connection string, Entra client secret and Google Maps browser key live only in SWA app settings, which are encrypted at rest; they are not in the repo. *Trade-off:* SWA managed functions don't support managed identity, so a storage key is used. If your policy requires managed identity or Key Vault references, deploy the API as a separate Function App with managed identity and link it to the SWA ("bring your own functions"). The code works unchanged; only the connection setup differs.
 - **External resources:** Google Fonts (Inter and Chivo Mono, the brand web fonts) and an embedded Google Maps frame in the restaurant map popup (CSP `frame-src` allows only `www.google.com` and `maps.google.com`; it is loaded only when someone opens a map, and it sees only the public restaurant and LVCC addresses). If the embed stops working, the popup's **Open in Google Maps** link still works. To remove it, self-host the fonts or delete the `<link>` tags; the page falls back to Arial, the brand's system-font substitute.
 
 ## Branding

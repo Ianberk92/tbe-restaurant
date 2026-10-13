@@ -4,7 +4,7 @@
   const DAYS = ["2026-11-16","2026-11-17","2026-11-18","2026-11-19"];
   const ACTIVE = new Set(["Hold","Confirmed"]);
   const state = { res: [], nearby: [], areas: [], loaded:false, nearLoaded:false, isOwner:false, db:null, downloads:null,
-    tab:"nearby", nearMode:"Breakfast", walkable:false, mine:false, showOff:false, todayOnly:false, me:null, editing:null, editingEtag:null, editingNear:null, nearDelArmed:false, confirmDel:null, err:"" };
+    tab:"nearby", nearMode:"Breakfast", walkable:false, mapsKey:"", mine:false, showOff:false, todayOnly:false, me:null, editing:null, editingEtag:null, editingNear:null, nearDelArmed:false, confirmDel:null, err:"" };
 
   const $ = s => document.querySelector(s);
   const remember = (k, v) => { try{ localStorage.setItem("redine."+k, JSON.stringify(v)); }catch(_){} };
@@ -237,7 +237,9 @@
 
   /* ---------- Map popup ----------
      Shows the route from Central Hall (or the team hotel) to the restaurant in an embedded Google map,
-     with the hotels around it. The "Open in Google Maps" link uses Google's documented directions URL. */
+     with the hotels around it. Uses Google's official Maps Embed API when the site has a key
+     (app setting GOOGLE_MAPS_EMBED_KEY, served by /api/config); otherwise Google's keyless embed.
+     The "Open in Google Maps" link uses Google's documented directions URL either way. */
   const ORIGINS = {
     lvcc: { label:"Central Hall", q:"Las Vegas Convention Center Central Hall, 3150 Paradise Rd, Las Vegas, NV 89109" },
     linq: { label:"The LINQ", q:"The LINQ Hotel, 3535 S Las Vegas Blvd, Las Vegas, NV 89109" }
@@ -249,7 +251,9 @@
     const dest = [n.name, n.venue, "Las Vegas, NV"].filter(Boolean).join(", ");
     const walk = WALK_AREAS.has(n.area) || mapFrom==="linq" && n.area==="linq";
     const o = ORIGINS[mapFrom];
-    $("#mapFrame").src = "https://maps.google.com/maps?" + new URLSearchParams({saddr:o.q, daddr:dest, ...(walk?{dirflg:"w"}:{}), output:"embed"});
+    $("#mapFrame").src = state.mapsKey
+      ? "https://www.google.com/maps/embed/v1/directions?" + new URLSearchParams({key:state.mapsKey, origin:o.q, destination:dest, mode: walk?"walking":"transit"})
+      : "https://maps.google.com/maps?" + new URLSearchParams({saddr:o.q, daddr:dest, ...(walk?{dirflg:"w"}:{}), output:"embed"});
     $("#mapOpen").href = "https://www.google.com/maps/dir/?" + new URLSearchParams({api:"1", origin:o.q, destination:dest, travelmode: walk?"walking":"transit"});
     document.querySelectorAll("#mapDlg [data-from]").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.from===mapFrom)));
     const ar = state.areas.find(x=>x.id===n.area);
@@ -486,6 +490,11 @@
     if(!res.ok){ const err = new Error("HTTP "+res.status); err.status = res.status; throw err; }
     return res.status === 204 ? null : res.json();
   }
+  async function apiCallRaw(url){
+    const res = await fetch(url, {credentials:"same-origin", cache:"no-store"});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    return res.json();
+  }
   async function loadAll(){
     try{
       const [res, near, areas] = await Promise.all([apiCall("GET","/reservations"), apiCall("GET","/nearby"), apiCall("GET","/areas")]);
@@ -543,6 +552,7 @@
     $("#addBtn").hidden = !state.isOwner;
     $("#exportBtn").hidden = false;
     await loadAll();
+    try{ const c = await apiCallRaw("/api/config"); state.mapsKey = (c && c.mapsEmbedKey) || ""; }catch(_){}   /* optional: keyless map if missing */
     setInterval(loadAll, 30000);           /* pick up changes made on other devices */
     setInterval(()=>{ if(state.loaded && $("#formPanel").hidden && $("#nearPanel").hidden) render(); }, 10*60*1000);
   })();
