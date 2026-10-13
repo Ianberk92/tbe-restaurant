@@ -173,7 +173,8 @@
     return ten.length===10 ? "tel:+1"+ten : "";
   }
 
-  function nearCard(n){
+  function nearCard(n, mode){
+    const morning = mode === "Breakfast";
     const book = safeUrl(n.bookUrl), tel = telHref(n.phone);
     const ar = state.areas.find(x=>x.id===n.area);
     const legs = [];
@@ -199,7 +200,8 @@
       : "";
     return `<article class="card ncard">
         <div class="row1"><button type="button" class="rname link" data-act="map" data-id="${esc(n.id)}">${esc(n.name)}</button><span class="pill bk-${esc(n.booking)}">${esc(BADGE[n.booking]||n.booking||"")}</span></div>
-        ${n.total?`<div class="big">${esc(n.total)}<small>min from booth</small></div>`:""}
+        ${n.total?`<div class="big">${esc(n.total)}<small>${morning?"min to Central Hall":"min from booth"}</small></div>`:""}
+        ${morning && n.hours?`<div class="hours"><span class="k">Hours</span>${esc(n.hours)}</div>`:""}
         <div class="loc">${ar?`<span class="areachip">${esc(ar.short||ar.name)}${ar.f1Risk?" · F1 zone":""}</span>`:""}${esc(n.venue||"")}</div>
         ${n.watch?`<div class="watch">${esc(n.watch)}</div>`:""}
         <div class="acts">${acts.join("")}</div>
@@ -211,7 +213,7 @@
   /* Places: one row of filters and a single list, closest to Central Hall first */
   const WALKABLE_MIN = 20;
   const MEALS = [
-    ["Breakfast","Best when the guest is staying at that hotel."],
+    ["Breakfast",""],
     ["Lunch","Booth lunch is catered; these are for overflow or a quick team bite."],
     ["Dinner",""],
     ["Drinks","For casual customer drinks after the show floor closes."]
@@ -228,9 +230,21 @@
       .filter(n=>Array.isArray(n.fit) && n.fit.includes(mode) && (!state.walkable || (Number(n.total)||Infinity) <= WALKABLE_MIN))
       .sort((a,b)=>(Number(a.total)||99)-(Number(b.total)||99) || (bk[a.booking]??4)-(bk[b.booking]??4) || String(a.name).localeCompare(String(b.name)));
     const tip = MEALS.find(m=>m[0]===mode)[1];
-    html += `<p class="lead">Closest to Central Hall first.${tip?" "+esc(tip):""}</p>`;
+    html += mode==="Breakfast"
+      ? `<p class="lead">Breakfast on the way in: grouped by hotel, closest to the convention center first. Times are from the restaurant to Central Hall, so groups can meet there and walk over together.</p>`
+      : `<p class="lead">Closest to Central Hall first.${tip?" "+esc(tip):""}</p>`;
     if(!items.length) return html + `<div class="empty">No ${esc(mode.toLowerCase())} spots within ${WALKABLE_MIN} minutes. Turn off “Walkable” to see more.</div>`;
-    html += `<div class="near">${items.map(nearCard).join("")}</div>`;
+    if(mode==="Breakfast"){
+      const hotelOf = n => n.hotel || n.venue || "Other";
+      const hotels = [...new Set(items.map(hotelOf))];   /* items are already closest-first */
+      html += hotels.map(h=>{
+        const list = items.filter(n=>hotelOf(n)===h);
+        const mins = Math.min(...list.map(n=>Number(n.total)||Infinity));
+        return `<section class="hotel"><h3 class="hotelh">${esc(h)}${Number.isFinite(mins)?` <span>· ${mins} min to Central Hall</span>`:""}</h3><div class="near">${list.map(n=>nearCard(n, mode)).join("")}</div></section>`;
+      }).join("");
+    } else {
+      html += `<div class="near">${items.map(n=>nearCard(n, mode)).join("")}</div>`;
+    }
     html += `<p class="note">Times, hours and booking policies are estimates from public listings (October 2026). Confirm before relying on them.</p>`;
     return html;
   }
@@ -245,25 +259,36 @@
     linq: { label:"The LINQ", q:"The LINQ Hotel, 3535 S Las Vegas Blvd, Las Vegas, NV 89109" }
   };
   const WALK_AREAS = new Set(["lvcc","paradise","westgate"]);
-  let mapPlace = null, mapFrom = "lvcc";
+  let mapPlace = null, mapFrom = "lvcc", mapMorning = false;
   function drawMap(){
     const n = mapPlace; if(!n) return;
-    const dest = [n.name, n.venue, "Las Vegas, NV"].filter(Boolean).join(", ");
-    const walk = WALK_AREAS.has(n.area) || mapFrom==="linq" && n.area==="linq";
-    const o = ORIGINS[mapFrom];
+    const place = [n.name, n.venue, "Las Vegas, NV"].filter(Boolean).join(", ");
+    /* Daytime: Central Hall (or The LINQ) -> restaurant. Breakfast: restaurant -> Central Hall, or The LINQ -> restaurant. */
+    const [from, to] = mapMorning
+      ? (mapFrom==="linq" ? [ORIGINS.linq.q, place] : [place, ORIGINS.lvcc.q])
+      : [ORIGINS[mapFrom].q, place];
+    const walk = mapFrom==="linq" ? n.area==="linq" : WALK_AREAS.has(n.area);
     $("#mapFrame").src = state.mapsKey
-      ? "https://www.google.com/maps/embed/v1/directions?" + new URLSearchParams({key:state.mapsKey, origin:o.q, destination:dest, mode: walk?"walking":"transit"})
-      : "https://maps.google.com/maps?" + new URLSearchParams({saddr:o.q, daddr:dest, ...(walk?{dirflg:"w"}:{}), output:"embed"});
-    $("#mapOpen").href = "https://www.google.com/maps/dir/?" + new URLSearchParams({api:"1", origin:o.q, destination:dest, travelmode: walk?"walking":"transit"});
+      ? "https://www.google.com/maps/embed/v1/directions?" + new URLSearchParams({key:state.mapsKey, origin:from, destination:to, mode: walk?"walking":"transit"})
+      : "https://maps.google.com/maps?" + new URLSearchParams({saddr:from, daddr:to, ...(walk?{dirflg:"w"}:{}), output:"embed"});
+    $("#mapOpen").href = "https://www.google.com/maps/dir/?" + new URLSearchParams({api:"1", origin:from, destination:to, travelmode: walk?"walking":"transit"});
     document.querySelectorAll("#mapDlg [data-from]").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.from===mapFrom)));
     const ar = state.areas.find(x=>x.id===n.area);
-    $("#mapNote").textContent = mapFrom==="lvcc" && n.route ? "How the team gets there: " + n.route
+    $("#mapNote").textContent = mapMorning
+      ? (mapFrom==="linq"
+          ? `From the team hotel to breakfast; then ${n.total ? n.total+" min" : "a short trip"} on to Central Hall.` + (ar && ar.getThere && ar.getThere!=="Already there" ? " " + ar.getThere : "")
+          : (n.route ? "Same route in reverse: " + n.route : ""))
+      : mapFrom==="lvcc" && n.route ? "How the team gets there: " + n.route
       : ar && ar.getThere && ar.getThere!=="Already there" ? ar.getThere : "";
   }
   function openMap(n){
     mapPlace = n; mapFrom = "lvcc";
+    mapMorning = state.tab==="nearby" && state.nearMode==="Breakfast";
+    $("#mapRouteLabel").textContent = mapMorning ? "Morning route" : "Route from";
+    $("#mapDlg [data-from=lvcc]").textContent = mapMorning ? "To Central Hall" : "Central Hall";
+    $("#mapDlg [data-from=linq]").textContent = mapMorning ? "From The LINQ" : "The LINQ";
     $("#mapTitle").textContent = n.name;
-    $("#mapSub").textContent = [n.total ? n.total+" min from your booth" : "", n.venue].filter(Boolean).join(" · ");
+    $("#mapSub").textContent = [n.total ? n.total + (mapMorning ? " min to Central Hall" : " min from your booth") : "", n.venue].filter(Boolean).join(" · ");
     drawMap();
     const dlg = $("#mapDlg");
     if(typeof dlg.showModal === "function") dlg.showModal(); else window.open($("#mapOpen").href, "_blank", "noopener");

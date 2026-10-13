@@ -168,6 +168,11 @@ details.moreform>.grid{margin-top:12px}
 .ncard .acts .btn{text-decoration:none;display:inline-flex;align-items:center}
 .ncard .acts .btn.primary{color:var(--accent-fg)}
 .ncard .areachip{margin-right:6px}
+/* Breakfast: grouped by hotel */
+.hotel{margin-bottom:18px}
+.hotelh{font-family:var(--f-display);font-weight:600;font-size:19px;margin:6px 0 8px;letter-spacing:-.01em}
+.hotelh span{font-weight:500;font-size:14px;color:var(--muted)}
+.ncard .hours{font-size:13.5px}
 /* ---------- Phones ---------- */
 /* Keep content clear of the iPhone notch / rounded corners in landscape */
 .wrap{padding-inline:max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right))}
@@ -320,7 +325,7 @@ dialog#mapDlg::backdrop{background:rgba(24,24,24,.5)}
     <div><h3 id="mapTitle">Map</h3><div class="msg" id="mapSub"></div></div>
     <button type="button" class="btn sm" id="mapClose">Close</button>
   </div>
-  <span class="msg">Route from</span>
+  <span class="msg" id="mapRouteLabel">Route from</span>
   <div class="seg" role="group" aria-label="Route from">
     <button type="button" class="segb" data-from="lvcc" aria-pressed="true">Central Hall</button>
     <button type="button" class="segb" data-from="linq" aria-pressed="false">The LINQ</button>
