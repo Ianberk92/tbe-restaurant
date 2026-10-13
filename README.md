@@ -12,7 +12,7 @@ A small internal web app the Executive Office uses to track restaurant holds and
 
 | Item | Choice |
 |---|---|
-| Hosting | **Azure Static Web Apps (Standard plan)**: a static front end plus a managed Azure Functions API (Node.js 20) |
+| Hosting | **Azure Static Web Apps (Standard plan)**: a static front end plus a managed Azure Functions API (Node.js 22) |
 | Data | **Azure Table Storage**: one table, about 30 rows today, a few hundred at most |
 | Sign-in | **Microsoft Entra ID, Terabase tenant only**, using SWA built-in auth with a custom app registration |
 | Access | Every page and API call requires sign-in. Writes require the SWA custom role **`editor`**, checked at the edge (route rules) and again in the API code |
@@ -34,7 +34,7 @@ A small internal web app the Executive Office uses to track restaurant holds and
  Azure Static Web Apps (Standard)
     ├─ /.auth/*                → built-in auth, Entra ID (single tenant)
     ├─ /                       → app/index.html + app/app.js   [role: authenticated]
-    └─ /api/data/{coll}/{id}   → managed Azure Functions (Node 20)
+    └─ /api/data/{coll}/{id}   → managed Azure Functions (Node 22)
           GET                  [role: authenticated]
           PUT/PATCH/DELETE     [role: editor] (reservations, nearby)
               │
@@ -116,7 +116,7 @@ In `app/staticwebapp.config.json`, replace `<TENANT_ID>` in `openIdIssuer` with 
 ```bash
 npm install -g @azure/static-web-apps-cli
 cd api && npm ci && cd ..
-swa deploy ./app --api-location ./api --api-language node --api-version 20 \
+swa deploy ./app --api-location ./api --api-language node --api-version 22 \
   --env production --deployment-token <token>
 ```
 

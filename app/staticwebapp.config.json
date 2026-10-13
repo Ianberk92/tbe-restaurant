@@ -31,5 +31,5 @@
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
     "Cache-Control": "no-cache"
   },
-  "platform": { "apiRuntime": "node:20" }
+  "platform": { "apiRuntime": "node:22" }
 }
