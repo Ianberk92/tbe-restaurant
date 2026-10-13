@@ -147,9 +147,16 @@ Send each editor their invitation link. They accept it once while signed in, and
 
 *Alternative:* if you'd rather manage editors through an Entra group, use SWA's `rolesSource` function to map a group to `editor`. That isn't included here.
 
-### 7. Optional: custom domain
+### 7. Custom domain: `redine.terabase.energy`
 
-For example `dining.terabase.energy`: **Static Web App → Custom domains**. Add the domain's callback URL to the app registration as well.
+1. **DNS** (whoever manages `terabase.energy`): add a CNAME record `redine` → the SWA default hostname (for example `nice-island-08ba0641e.3.azurestaticapps.net`).
+2. **Attach it** once the CNAME resolves (Azure validates it):
+   ```bash
+   az staticwebapp hostname set -n replusdining-swa -g rg-replus-dining --hostname redine.terabase.energy
+   ```
+   Azure issues and renews the TLS certificate automatically.
+3. **Sign-in:** add `https://redine.terabase.energy/.auth/login/aad/callback` to the app registration's redirect URIs (keep the default one too).
+4. *(Optional)* In **Static Web App → Custom domains**, set `redine.terabase.energy` as the default domain.
 
 ### 8. Smoke test
 
@@ -186,7 +193,20 @@ Unit tests: `cd api && npm test` (10 tests; no Azure resources needed).
 - **Input validation:** writes accept only an allow-list of fields per collection (reservations, restaurants) with length limits; restaurant booking types and meals must come from fixed lists. IDs must match `^[A-Za-z0-9_-]{1,64}$`, links must be http(s), and bodies are capped at 32 KB. The front end escapes all data before rendering.
 - **Headers:** CSP (`script-src 'self'`, no inline scripts, no third-party connections), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` and `frame-ancestors 'none'`. The page also sets `noindex`.
 - **Secrets:** the storage connection string and Entra client secret live only in SWA app settings, which are encrypted at rest; they are not in the repo. *Trade-off:* SWA managed functions don't support managed identity, so a storage key is used. If your policy requires managed identity or Key Vault references, deploy the API as a separate Function App with managed identity and link it to the SWA ("bring your own functions"). The code works unchanged; only the connection setup differs.
-- **External resources:** the only one is Google Fonts (CSS and font files). To remove it, self-host the fonts or delete the `<link>` tags; the page falls back to system fonts.
+- **External resources:** the only one is Google Fonts (Inter and Chivo Mono, the brand web fonts). To remove it, self-host the fonts or delete the `<link>` tags; the page falls back to Arial, the brand's system-font substitute.
+
+## Branding
+
+Styled to the Terabase Brand Guidelines (2023): navy `#1B3359` header, orange `#F75200` accents, Inter / Chivo Mono type. Text colors are shades of the brand palette chosen to meet WCAG AA contrast in light and dark mode (tokens and notes are at the top of `app/index.html`).
+
+Logo files go in `app/brand/` (copy them from SharePoint: *TB Docs → 04. Sales & Marketing → LOGO → Terabase Logo*):
+
+| File in `app/brand/` | SharePoint source |
+|---|---|
+| `terabase-logo-white.svg` | `Primary/Partial White/Terabase_Primary_Logo_Partial_White.svg` (color mark, white wordmark, for the navy header) |
+| `terabase-mark.svg` | `Icon Mark/Full Color/Terabase_Icon_Mark_Full_Color.svg` (browser tab icon) |
+
+If a file is missing the page simply hides the logo.
 - **Rotation:** rotate the storage key and client secret after the event, or simply delete the resource group.
 
 ## Operations, backup and rollback
