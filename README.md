@@ -3,7 +3,7 @@
 A small internal web app the Executive Office uses to track restaurant holds and reservations for the Terabase team at RE+ 2026 (Las Vegas, Nov 16–19). It also lists recommended restaurants near LVCC Central Hall, grouped by area.
 
 - **Requested by:** Linda Ramos (Executive Office)
-- **Users:** about 10–40 Terabase staff. **One editor** (Linda); everyone else views only.
+- **Users:** about 10–40 Terabase staff. **A few editors** (Linda, plus anyone else invited, e.g. Ian); everyone else views only.
 - **Lifetime:** event support, through late November 2026. It can be deleted afterward.
 
 ---
@@ -36,7 +36,7 @@ A small internal web app the Executive Office uses to track restaurant holds and
     ├─ /                       → app/index.html + app/app.js   [role: authenticated]
     └─ /api/data/{coll}/{id}   → managed Azure Functions (Node 20)
           GET                  [role: authenticated]
-          PUT/PATCH/DELETE     [role: editor] (reservations only)
+          PUT/PATCH/DELETE     [role: editor] (reservations, nearby)
               │
               ▼
        Azure Table Storage  (table "dining"; PartitionKey = collection, RowKey = id)
@@ -48,10 +48,10 @@ A small internal web app the Executive Office uses to track restaurant holds and
 | Collection | What it holds | Who writes |
 |---|---|---|
 | `reservations` | Holds and bookings: date, time, restaurant, host, party size, attendees, confirmation #, cancel-by deadline, notes | Editor, through the app |
-| `nearby` | Curated restaurant list (28 places) with booking type, hours, phone and walk-time estimates | IT/seed script only (read-only in the app) |
+| `nearby` | Restaurant list (28 places to start) with booking type, hours, phone and walk-time estimates | Editors, through the app (Add restaurant / Edit); initial load by seed script |
 | `areas` | 5 neighborhood descriptions (Paradise Rd, Westgate, North Strip, The LINQ, LVCC) | IT/seed script only |
 
-**Data classification:** Internal. Reservations contain staff and guest names, guest company names and the editor's sign-in email (audit field `updatedBy`). There is **no payment-card or financial-account data**; the form has no field for it. Please remind the editor not to type card numbers into Notes.
+**Data classification:** Internal. Reservations contain staff and guest names, guest company names and the editor's sign-in email (audit field `updatedBy`). There is **no payment-card or financial-account data**; the form has no field for it. Please remind editors not to type card numbers into Notes.
 
 ---
 
@@ -70,7 +70,7 @@ api/
   test/api.test.js           unit tests (node --test), no Azure needed
   host.json, package.json, package-lock.json, local.settings.sample.json
 infra/main.bicep             Azure resources
-scripts/seed.js              loads seed/*.json into the table (idempotent upsert)
+scripts/seed.js              loads seed/*.json into the table (adds missing rows; --overwrite replaces)
 scripts/export.js            backs up all collections to JSON
 seed/areas.json, seed/nearby.json   reference data
 .github/workflows/deploy.yml CI/CD
@@ -131,17 +131,19 @@ TABLES_CONNECTION_STRING="<connection string from the SWA app settings>" node sc
 # Loaded 28 nearby
 ```
 
-The script is safe to re-run. It never touches `reservations` unless a `seed/reservations.json` file exists.
+The script is safe to re-run. By default it only adds rows that aren't in the table yet, so restaurants edited in the app are kept. `--overwrite` replaces existing rows with the seed files (used for restores). It never touches `reservations` unless a `seed/reservations.json` file exists.
 
-### 6. Give Linda the editor role
+### 6. Give editors the editor role
+
+Repeat for each editor (Linda, `lramos@terabase.energy`, plus anyone else who should edit, such as Ian):
 
 **Static Web App → Role management → Invite**
 - Authentication provider: **Microsoft Entra ID**
-- Invitee: `lramos@terabase.energy`
+- Invitee: the editor's Terabase email
 - Domain: the site's hostname
 - Role: **`editor`**
 
-Send Linda the invitation link. She accepts it once while signed in, and from then on she sees **+ Add reservation**, Edit and Delete. Everyone else signs in and gets view-only access automatically; no invitation is needed.
+Send each editor their invitation link. They accept it once while signed in, and from then on see **+ Add reservation**, **+ Add restaurant**, Edit and Delete. Everyone else signs in and gets view-only access automatically; no invitation is needed. Several editors can work at once: if two people edit the same item, the second save is refused with a "someone else changed this" message instead of overwriting the first.
 
 *Alternative:* if you'd rather manage editors through an Entra group, use SWA's `rolesSource` function to map a group to `editor`. That isn't included here.
 
@@ -154,8 +156,9 @@ For example `dining.terabase.energy`: **Static Web App → Custom domains**. Add
 - [ ] Opening the site in a private window redirects to Microsoft sign-in, and only Terabase accounts can sign in.
 - [ ] A regular user sees "View only", with no Add/Edit/Delete buttons.
 - [ ] A regular user calling `PUT /api/data/reservations/test` (for example from browser dev tools) gets **403**.
-- [ ] Linda sees "You can edit", adds a test hold, changes its status and deletes it.
-- [ ] The "Where to eat" tab lists the restaurants and areas.
+- [ ] An editor sees "You can edit", adds a test hold, changes its status and deletes it.
+- [ ] The "Where to eat" tab lists the restaurants and areas, and "Within 15 min" narrows the list.
+- [ ] An editor adds a test restaurant with **+ Add restaurant**, edits it, then removes it.
 - [ ] Export CSV downloads a file.
 - [ ] App Insights shows API requests.
 
@@ -172,15 +175,15 @@ TABLES_CONNECTION_STRING="UseDevelopmentStorage=true" node scripts/seed.js
 swa start app --api-location api      # http://localhost:4280 (mock sign-in; add role "editor" there)
 ```
 
-Unit tests: `cd api && npm test` (6 tests; no Azure resources needed).
+Unit tests: `cd api && npm test` (10 tests; no Azure resources needed).
 
 ---
 
 ## Security notes
 
 - **Authentication** happens at the SWA edge. Every route, including `/api/*`, requires the `authenticated` role, and unauthenticated requests redirect to Entra sign-in. GitHub and Twitter login routes are disabled.
-- **Authorization** is enforced twice. SWA route rules limit `PUT`, `PATCH` and `DELETE` on `/api/data/reservations/*` to `editor`, and the API checks the role again from the `x-ms-client-principal` header (which SWA sets and clients cannot forge). Reference collections can't be written through the API at all.
-- **Input validation:** writes accept only an allow-list of reservation fields with length limits. IDs must match `^[A-Za-z0-9_-]{1,64}$`, links must be http(s), and bodies are capped at 32 KB. The front end escapes all data before rendering.
+- **Authorization** is enforced twice. SWA route rules limit `PUT`, `PATCH` and `DELETE` on `/api/data/reservations/*` and `/api/data/nearby/*` to `editor`, and the API checks the role again from the `x-ms-client-principal` header (which SWA sets and clients cannot forge). `areas` can't be written through the API at all.
+- **Input validation:** writes accept only an allow-list of fields per collection (reservations, restaurants) with length limits; restaurant booking types and meals must come from fixed lists. IDs must match `^[A-Za-z0-9_-]{1,64}$`, links must be http(s), and bodies are capped at 32 KB. The front end escapes all data before rendering.
 - **Headers:** CSP (`script-src 'self'`, no inline scripts, no third-party connections), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` and `frame-ancestors 'none'`. The page also sets `noindex`.
 - **Secrets:** the storage connection string and Entra client secret live only in SWA app settings, which are encrypted at rest; they are not in the repo. *Trade-off:* SWA managed functions don't support managed identity, so a storage key is used. If your policy requires managed identity or Key Vault references, deploy the API as a separate Function App with managed identity and link it to the SWA ("bring your own functions"). The code works unchanged; only the connection setup differs.
 - **External resources:** the only one is Google Fonts (CSS and font files). To remove it, self-host the fonts or delete the `<link>` tags; the page falls back to system fonts.
@@ -190,15 +193,15 @@ Unit tests: `cd api && npm test` (6 tests; no Azure resources needed).
 
 - **Monitoring:** API logs and errors go to Application Insights (`<prefix>-ai`). Writes are logged as `PUT|PATCH|DELETE reservations/<id> by <user>`.
 - **Backup:** Table Storage has no point-in-time restore. Run `node scripts/export.js` (with `TABLES_CONNECTION_STRING` set) before the event, nightly during show week if you want, and after the event. It writes `backup-<timestamp>/*.json`.
-- **Data restore:** copy the backup files into `seed/` and run `node scripts/seed.js`.
+- **Data restore:** copy the backup files into `seed/` and run `node scripts/seed.js --overwrite`.
 - **Code rollback:** redeploy the previous commit (`git revert` and push, or run `swa deploy` from the previous version). Data is unaffected.
 - **Decommission (after Nov 2026):** run `export.js`, give Linda the CSV or JSON, then `az group delete -n rg-replus-dining` and delete the app registration.
 
 ## Known limitations
 
-- **Last write wins.** That's fine with a single editor. With several editors, add ETag (`If-Match`) checks in `store.put`.
+- **Edit conflicts** are detected, not merged. Each document carries its Table Storage ETag; edits and deletes send it as `If-Match`, and a stale one gets 412 and a "someone else changed this" message. Quick status changes from the dropdown merge just that field.
 - **Updates across devices** arrive by polling every 30 seconds, not instantly.
-- **Restaurant details** (hours, booking policies, walk times) were researched in October 2026 and are estimates. To edit them, change `seed/*.json` and re-run the seed script.
+- **Restaurant details** (hours, booking policies, walk times) were researched in October 2026 and are estimates. Editors can correct them in the app (Edit on any restaurant card). `seed/*.json` is only the starting list.
 - **No email or calendar integration.** It's a tracker only; bookings are still made on OpenTable or by phone.
 
 ## Questions for IT to decide

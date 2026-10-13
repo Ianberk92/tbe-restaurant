@@ -16,6 +16,7 @@
     { "route": "/.auth/login/twitter", "statusCode": 404 },
     { "route": "/.auth/login/aad", "allowedRoles": ["anonymous", "authenticated"] },
     { "route": "/api/data/reservations/*", "methods": ["PUT", "PATCH", "DELETE"], "allowedRoles": ["editor"] },
+    { "route": "/api/data/nearby/*", "methods": ["PUT", "PATCH", "DELETE"], "allowedRoles": ["editor"] },
     { "route": "/api/*", "allowedRoles": ["authenticated"] },
     { "route": "/*", "allowedRoles": ["authenticated"] }
   ],

@@ -4,11 +4,15 @@
   const DAYS = ["2026-11-16","2026-11-17","2026-11-18","2026-11-19"];
   const ACTIVE = new Set(["Hold","Confirmed"]);
   const state = { res: [], nearby: [], areas: [], loaded:false, nearLoaded:false, isOwner:false, db:null, downloads:null,
-    tab:"nearby", nearMode:"Breakfast", openAreas:new Set(), f:{host:"",status:"",day:""}, nearF:"", nearMax:"", sort:{key:"date",dir:1}, editing:null, confirmDel:null, err:"" };
+    tab:"nearby", nearMode:"Breakfast", openAreas:new Set(), f:{host:"",status:"",day:""}, nearF:"", nearMax:"", sort:{key:"date",dir:1}, editing:null, editingEtag:null, editingNear:null, nearDelArmed:false, confirmDel:null, err:"" };
 
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const safeUrl = u => /^https?:\/\//i.test(u||"") ? u : "";
+  /* Message for a failed save; 412 means another editor changed the row first */
+  const saveError = (err, what) => err && err.status===412
+    ? "Someone else changed this "+what+" since you opened it. Close the form to see their version, then edit again."
+    : "Couldn’t save: check your connection and try again.";
 
   function dayLabel(d){
     if(!d) return "No date";
@@ -130,7 +134,7 @@
 
   function emptyState(){
     if(!state.loaded) return `<div class="empty"><strong>Loading reservations…</strong>Connecting to the shared tracker.</div>`;
-    if(state.res.length===0) return `<div class="empty"><strong>No reservations yet</strong>${state.isOwner?"Use “+ Add reservation” to log your first hold, or pick a spot from the Where to eat tab.":"Linda hasn’t added any holds yet. Check back closer to the show."}</div>`;
+    if(state.res.length===0) return `<div class="empty"><strong>No reservations yet</strong>${state.isOwner?"Use “+ Add reservation” to log your first hold, or pick a spot from the Where to eat tab.":"No holds have been added yet. Check back closer to the show."}</div>`;
     return `<div class="empty"><strong>Nothing matches these filters</strong>Clear a filter to see more.</div>`;
   }
 
@@ -190,18 +194,20 @@
   function nearCard(n){
     const map = safeUrl(n.mapUrl), book = safeUrl(n.bookUrl);
     const ar = state.areas.find(x=>x.id===n.area);
-    const parts = [`${esc(n.exitMin)} min to leave the hall`];
+    const parts = [];
+    if(Number(n.exitMin)) parts.push(`${esc(n.exitMin)} min to leave the hall`);
     if(Number(n.walkMin)) parts.push(`${esc(n.walkMin)} min ${esc((n.walkLabel||"walk").toLowerCase())}`);
     if(Number(n.insideMin)) parts.push(`${esc(n.insideMin)} min ${Number(n.walkMin)?"inside":"in line"}`);
     const extra = [
       n.bookingNote ? `<div><span class="k">Booking</span>${esc(n.bookingNote)}</div>` : "",
       n.phone ? `<div><span class="k">Phone</span><span class="mono">${esc(n.phone)}</span></div>` : "",
       n.route ? `<div><span class="k">Route</span>${esc(n.route)}</div>` : "",
-      `<div><span class="k">Time</span>${parts.join(" + ")}</div>`,
+      parts.length ? `<div><span class="k">Time</span>${parts.join(" + ")}</div>` : "",
       map ? `<div><a href="${esc(map)}" target="_blank" rel="noopener">Open in Maps</a></div>` : ""
     ].join("");
     const actions = [];
     if(book) actions.push(`<a class="btn sm" href="${esc(book)}" target="_blank" rel="noopener">Book online</a>`);
+    if(state.isOwner) actions.push(`<button class="btn sm" data-act="editnear" data-id="${esc(n.id)}">Edit</button>`);
     if(state.isOwner && n.booking!=="Walk-in" && n.booking!=="Grab-and-go") actions.push(`<button class="btn sm" data-act="usenear" data-id="${esc(n.id)}" title="Opens the reservation form filled in with this restaurant, so you can record a booking you've made">Add to tracker</button>`);
     return `<article class="card ncard">
         <div class="row1"><div class="rname">${esc(n.name)}</div><span class="pill bk-${esc(n.booking)}">${esc(n.booking==="Walk-in"?"Walk-in only":n.booking)}</span></div>
@@ -228,7 +234,7 @@
     const opts = [["","Any booking type"],["Reservable","Reservable"],["Walk-in","Walk-in only"],["Unconfirmed","Unconfirmed"],["Grab-and-go","Grab-and-go"]];
     /* "Close enough": cap on the typical booth-to-table time (the card's headline number) */
     const maxOpts = [["","Any distance"],["15","Within 15 min"],["20","Within 20 min"],["25","Within 25 min"]];
-    let html = `<div class="nearbar"><div class="seg" role="group" aria-label="Meal">${seg}</div><select id="fl_near" aria-label="Filter by booking type">${opts.map(([v,l])=>`<option value="${v}"${v===state.nearF?" selected":""}>${l}</option>`).join("")}</select><select id="fl_nearmax" aria-label="Filter by time from your booth">${maxOpts.map(([v,l])=>`<option value="${v}"${v===state.nearMax?" selected":""}>${l}</option>`).join("")}</select></div>`;
+    let html = `<div class="nearbar"><div class="seg" role="group" aria-label="Meal">${seg}</div><select id="fl_near" aria-label="Filter by booking type">${opts.map(([v,l])=>`<option value="${v}"${v===state.nearF?" selected":""}>${l}</option>`).join("")}</select><select id="fl_nearmax" aria-label="Filter by time from your booth">${maxOpts.map(([v,l])=>`<option value="${v}"${v===state.nearMax?" selected":""}>${l}</option>`).join("")}</select>${state.isOwner?`<button class="btn sm" data-act="addnear">+ Add restaurant</button>`:""}</div>`;
     if(!state.nearLoaded) return html + `<div class="empty"><strong>Loading restaurants…</strong></div>`;
     const bk = {"Reservable":0,"Unconfirmed":1,"Walk-in":2,"Grab-and-go":3};
     const maxMin = Number(state.nearMax) || Infinity;
@@ -262,14 +268,16 @@
     document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected", String(b.dataset.tab===state.tab)));
     const v = state.tab==="schedule"?viewSchedule():state.tab==="host"?viewHost():state.tab==="all"?viewAll():viewNearby();
     $("#view").innerHTML = (state.err?`<div class="flag bad" style="margin-bottom:12px">${esc(state.err)}</div>`:"") + v;
-    const fa = $("#f_area"); if(fa && fa.options.length !== state.areas.length+1){ const cur = fa.value; fa.innerHTML = `<option value="">—</option>` + [...state.areas].sort((a,b)=>(a.order||0)-(b.order||0)).map(a=>`<option value="${esc(a.id)}">${esc(a.name)}</option>`).join(""); fa.value = cur; }
+    for(const fa of [$("#f_area"), $("#n_area")]){ if(fa && fa.options.length !== state.areas.length+1){ const cur = fa.value; fa.innerHTML = `<option value="">—</option>` + [...state.areas].sort((a,b)=>(a.order||0)-(b.order||0)).map(a=>`<option value="${esc(a.id)}">${esc(a.name)}</option>`).join(""); fa.value = cur; } }
     $("#hostList").innerHTML = [...new Set(state.res.map(r=>r.host).filter(Boolean))].map(h=>`<option value="${esc(h)}">`).join("");
   }
 
   /* ---------- Form ---------- */
   const FIELDS = {area:"f_area",date:"f_date",time:"f_time",meal:"f_meal",status:"f_status",restaurant:"f_restaurant",location:"f_location",map:"f_map",travel:"f_travel",host:"f_host",party:"f_party",company:"f_company",purpose:"f_purpose",attendees:"f_attendees",conf:"f_conf",bookedUnder:"f_bookedUnder",platform:"f_platform",cancelBy:"f_cancelBy",fee:"f_fee",deposit:"f_deposit",notes:"f_notes"};
   function openForm(r, prefill){
+    if(!$("#nearPanel").hidden){ $("#nearPanel").hidden = true; state.editingNear = null; }
     state.editing = r ? r.id : null;
+    state.editingEtag = r ? r.etag : null;
     $("#formTitle").textContent = r ? "Edit reservation" : "Add reservation";
     const src = r || prefill || {};
     for(const [k,id] of Object.entries(FIELDS)){
@@ -281,7 +289,7 @@
     $("#formPanel").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth", block:"start"});
     $("#f_date").focus();
   }
-  function closeForm(){ $("#formPanel").hidden = true; state.editing = null; }
+  function closeForm(){ $("#formPanel").hidden = true; state.editing = null; state.editingEtag = null; render(); }
 
   $("#resForm").addEventListener("submit", async e=>{
     e.preventDefault();
@@ -295,16 +303,72 @@
     data.updatedAt = new Date().toISOString();
     $("#saveBtn").disabled = true; $("#formMsg").textContent = "Saving…"; $("#formMsg").className="msg";
     try{
-      if(state.editing) await state.db.collection("reservations").doc(state.editing).set(data);
+      if(state.editing) await state.db.collection("reservations").doc(state.editing).set(data, {etag: state.editingEtag});
       else await state.db.collection("reservations").add(data);
       closeForm();
     }catch(err){
-      $("#formMsg").textContent = "Couldn’t save: " + (err && err.code==="quota_exceeded" ? "the tracker is full; delete old rows first." : "check your connection and try again.");
+      $("#formMsg").textContent = saveError(err, "reservation");
       $("#formMsg").className = "msg err";
     }finally{ $("#saveBtn").disabled = false; }
   });
   $("#cancelBtn").addEventListener("click", closeForm);
   $("#addBtn").addEventListener("click", ()=>openForm(null));
+
+  /* ---------- Restaurant form (editors) ---------- */
+  const NEAR_FIELDS = {name:"n_name",area:"n_area",booking:"n_booking",venue:"n_venue",total:"n_total",totalBusy:"n_totalBusy",meals:"n_meals",hours:"n_hours",phone:"n_phone",bookUrl:"n_bookUrl",mapUrl:"n_mapUrl",bookingNote:"n_bookingNote",route:"n_route",watch:"n_watch"};
+  const fitBoxes = () => [...document.querySelectorAll("#n_fit input[type=checkbox]")];
+  function openNearForm(n){
+    closeForm();
+    state.editingNear = n ? n.id : null;
+    state.nearDelArmed = false;
+    $("#nearTitle").textContent = n ? "Edit restaurant" : "Add restaurant";
+    const src = n || {booking:"Unconfirmed", fit:[state.nearMode]};
+    for(const [k,id] of Object.entries(NEAR_FIELDS)) document.getElementById(id).value = src[k] ?? "";
+    const fit = Array.isArray(src.fit) ? src.fit : [];
+    fitBoxes().forEach(b=>{ b.checked = fit.includes(b.value); });
+    $("#nearDelBtn").hidden = !n; $("#nearDelBtn").textContent = "Remove from list";
+    $("#nearMsg").textContent = ""; $("#nearMsg").className = "msg";
+    $("#nearPanel").hidden = false;
+    $("#nearPanel").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth", block:"start"});
+    $("#n_name").focus();
+  }
+  function closeNearForm(){ $("#nearPanel").hidden = true; state.editingNear = null; state.nearDelArmed = false; render(); }
+  function nearFail(text){ $("#nearMsg").textContent = text; $("#nearMsg").className = "msg err"; }
+
+  $("#nearForm").addEventListener("submit", async e=>{
+    e.preventDefault();
+    if(!state.db || !state.isOwner) return;
+    const data = {};
+    for(const [k,id] of Object.entries(NEAR_FIELDS)){
+      let v = document.getElementById(id).value.trim();
+      if((k==="total"||k==="totalBusy") && v!=="") v = Number(v);
+      data[k] = v;
+    }
+    data.fit = fitBoxes().filter(b=>b.checked).map(b=>b.value);
+    if(!data.fit.length) return nearFail("Pick at least one meal so it shows up in a view.");
+    data.updatedAt = new Date().toISOString();
+    const existing = state.editingNear && state.nearby.find(x=>x.id===state.editingNear);
+    $("#nearSaveBtn").disabled = true; $("#nearMsg").textContent = "Saving…"; $("#nearMsg").className = "msg";
+    try{
+      if(existing){
+        /* Keep fields the form doesn't show (walk legs, hotel, distance) */
+        const { id:_i, etag, ...rest } = existing;
+        await state.db.collection("nearby").doc(existing.id).set({...rest, ...data}, {etag});
+      } else {
+        await state.db.collection("nearby").add(data);
+      }
+      closeNearForm();
+    }catch(err){ nearFail(saveError(err, "restaurant")); }
+    finally{ $("#nearSaveBtn").disabled = false; }
+  });
+  $("#nearCancelBtn").addEventListener("click", closeNearForm);
+  $("#nearDelBtn").addEventListener("click", async ()=>{
+    const n = state.editingNear && state.nearby.find(x=>x.id===state.editingNear);
+    if(!n || !state.db) return;
+    if(!state.nearDelArmed){ state.nearDelArmed = true; $("#nearDelBtn").textContent = "Click again to remove for good"; return; }
+    try{ await state.db.collection("nearby").doc(n.id).delete({etag: n.etag}); closeNearForm(); }
+    catch(err){ nearFail(err && err.status===412 ? "Someone else changed this restaurant, so it wasn’t removed. Close the form and check it." : "Couldn’t remove it. Try again."); }
+  });
 
   /* ---------- Events ---------- */
   $("#tabs").addEventListener("click", e=>{ const b=e.target.closest(".tab"); if(!b) return; state.tab=b.dataset.tab; state.confirmDel=null; render(); });
@@ -336,8 +400,12 @@
     else if(act==="del-no"){ state.confirmDel=null; render(); }
     else if(act==="del-yes" && state.db){
       state.confirmDel=null;
-      try{ await state.db.collection("reservations").doc(id).delete(); }catch(err){ state.err="Delete didn’t go through. Try again."; render(); }
+      const r = state.res.find(x=>x.id===id);
+      try{ await state.db.collection("reservations").doc(id).delete({etag: r && r.etag}); }
+      catch(err){ state.err = err && err.status===412 ? "Someone else changed that reservation, so it wasn’t deleted. Check it and try again." : "Delete didn’t go through. Try again."; render(); }
     }
+    else if(act==="addnear"){ openNearForm(null); }
+    else if(act==="editnear"){ const n = state.nearby.find(x=>x.id===id); if(n) openNearForm(n); }
     else if(act==="usenear"){
       const n = state.nearby.find(x=>x.id===id); if(!n) return;
       openForm(null, {area:n.area||"", restaurant:n.name, location:n.venue, map:n.mapUrl, travel:n.totalBusy||n.total||"", status:"Hold", meal:"Dinner",
@@ -361,10 +429,11 @@
      Data goes through the /api/data/{collection}/{id} Azure Functions API.
      Only users with the "editor" role can write; the API enforces this too. */
   const API = "/api/data";
-  async function apiCall(method, path, body){
+  async function apiCall(method, path, body, etag){
+    const headers = body ? {"Content-Type":"application/json"} : {};
+    if(etag) headers["If-Match"] = etag;   /* server answers 412 if someone else saved first */
     const res = await fetch(API + path, {
-      method, credentials: "same-origin", cache: "no-store",
-      headers: body ? {"Content-Type":"application/json"} : {},
+      method, credentials: "same-origin", cache: "no-store", headers,
       body: body ? JSON.stringify(body) : undefined
     });
     if(!res.ok){ const err = new Error("HTTP "+res.status); err.status = res.status; throw err; }
@@ -380,7 +449,7 @@
       state.loaded = true; state.nearLoaded = true;
       state.err = e.status===401 ? "Your sign-in expired. Reload the page to sign in again." : "Couldn’t load the latest data. It will retry automatically.";
     }
-    if($("#formPanel").hidden) render();
+    if($("#formPanel").hidden && $("#nearPanel").hidden) render();
   }
   const newId = () => (crypto.randomUUID ? crypto.randomUUID().replace(/-/g,"") : String(Date.now())+Math.random().toString(16).slice(2));
   /* Small shim with the same shape the page already uses */
@@ -390,9 +459,15 @@
         doc(id){
           id = id || newId();
           return {
-            async set(data){ await apiCall("PUT", `/${name}/${encodeURIComponent(id)}`, data); await loadAll(); },
+            async set(data, opts){
+              try{ await apiCall("PUT", `/${name}/${encodeURIComponent(id)}`, data, opts && opts.etag); }
+              finally{ await loadAll(); }   /* after a 412, closing the form then shows the other editor's version */
+            },
             async update(data){ await apiCall("PATCH", `/${name}/${encodeURIComponent(id)}`, data); await loadAll(); },
-            async delete(){ await apiCall("DELETE", `/${name}/${encodeURIComponent(id)}`); await loadAll(); }
+            async delete(opts){
+              try{ await apiCall("DELETE", `/${name}/${encodeURIComponent(id)}`, null, opts && opts.etag); }
+              finally{ await loadAll(); }   /* refresh either way so a 412 shows the other editor's change */
+            }
           };
         },
         async add(data){ await this.doc().set(data); }
@@ -414,6 +489,6 @@
     $("#exportBtn").hidden = false;
     await loadAll();
     setInterval(loadAll, 30000);           /* pick up changes made on other devices */
-    setInterval(()=>{ if(state.loaded && $("#formPanel").hidden) render(); }, 10*60*1000);
+    setInterval(()=>{ if(state.loaded && $("#formPanel").hidden && $("#nearPanel").hidden) render(); }, 10*60*1000);
   })();
 })();

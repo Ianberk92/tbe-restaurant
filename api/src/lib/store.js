@@ -7,7 +7,9 @@
  *   RowKey       = document id
  *   json         = the document body as a JSON string (keeps arrays/nested values intact)
  *   updatedBy    = sign-in name of the last writer (audit)
- * Table Storage adds its own Timestamp and ETag.
+ * Table Storage adds its own Timestamp and ETag. Documents returned here carry
+ * that ETag as `etag`; pass it back to put/remove to reject the write if
+ * someone else changed the row in the meantime (HTTP 412 from Table Storage).
  */
 const { TableClient, odata } = require('@azure/data-tables');
 
@@ -37,7 +39,7 @@ async function ensureTable() {
 function toDoc(entity) {
   let body = {};
   try { body = JSON.parse(entity.json || '{}'); } catch { body = {}; }
-  return { id: entity.rowKey, ...body };
+  return { id: entity.rowKey, ...body, etag: entity.etag };
 }
 
 async function list(collection) {
@@ -58,20 +60,24 @@ async function get(collection, id) {
   }
 }
 
-async function put(collection, id, body, user) {
+/**
+ * Creates or replaces a document. With `etag`, only replaces the row if it is
+ * unchanged since that ETag was read (throws statusCode 412 or 404 otherwise).
+ */
+async function put(collection, id, body, user, { etag } = {}) {
   await ensureTable();
-  const { id: _ignored, ...clean } = body || {};
-  await getClient().upsertEntity(
-    { partitionKey: collection, rowKey: id, json: JSON.stringify(clean), updatedBy: user },
-    'Replace'
-  );
-  return { id, ...clean };
+  const { id: _ignored, etag: _oldEtag, ...clean } = body || {};
+  const entity = { partitionKey: collection, rowKey: id, json: JSON.stringify(clean), updatedBy: user };
+  const result = etag
+    ? await getClient().updateEntity(entity, 'Replace', { etag })
+    : await getClient().upsertEntity(entity, 'Replace');
+  return { id, ...clean, etag: result && result.etag };
 }
 
-async function remove(collection, id) {
+async function remove(collection, id, { etag } = {}) {
   await ensureTable();
   try {
-    await getClient().deleteEntity(collection, id);
+    await getClient().deleteEntity(collection, id, etag ? { etag } : undefined);
   } catch (e) {
     if (e.statusCode !== 404) throw e; // deleting something already gone is fine
   }

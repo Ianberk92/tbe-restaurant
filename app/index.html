@@ -175,6 +175,12 @@ details.area>summary .ac{color:var(--muted);font-size:13px}
 .hostcard li span{color:var(--muted)}
 @media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s}}
 .card:hover{border-color:color-mix(in srgb,var(--muted) 60%,var(--line))}
+/* Restaurant form: meal checkboxes */
+fieldset.checks{border:0;padding:0;margin:0;display:flex;flex-direction:row;flex-wrap:wrap;gap:6px 16px;align-items:center;justify-content:flex-start}
+fieldset.checks legend{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:0;margin-bottom:4px;width:100%}
+fieldset.checks label{display:inline-flex;gap:6px;align-items:center;font-size:14px;font-weight:500;color:var(--fg);text-transform:none;letter-spacing:0;cursor:pointer}
+fieldset.checks input{width:auto;padding:0;accent-color:var(--accent)}
+.formfoot .spacer{flex:1}
 </style>
 <style>html{color-scheme:light}body{margin:0}[hidden]{display:none!important}img{max-width:100%}.signout{color:inherit}</style>
 </head>
@@ -247,6 +253,41 @@ details.area>summary .ac{color:var(--muted);font-size:13px}
       </div>
     </form>
     <datalist id="hostList"></datalist>
+  </section>
+
+  <section class="panel" id="nearPanel" hidden aria-labelledby="nearTitle">
+    <h3 id="nearTitle">Add restaurant</h3>
+    <form id="nearForm" autocomplete="off">
+      <div class="grid">
+        <div class="field"><label for="n_name">Name</label><input id="n_name" required maxlength="120"></div>
+        <div class="field"><label for="n_area">Area</label><select id="n_area" required><option value="">—</option></select></div>
+        <div class="field"><label for="n_booking">Booking</label><select id="n_booking"><option>Reservable</option><option value="Walk-in">Walk-in only</option><option>Unconfirmed</option><option>Grab-and-go</option></select></div>
+        <div class="field"><label for="n_venue">Venue / hotel</label><input id="n_venue" maxlength="120" placeholder="e.g. Westgate, Floor 1"></div>
+        <fieldset class="field wide checks" id="n_fit"><legend>Good for (pick at least one)</legend>
+          <label><input type="checkbox" value="Breakfast"> Breakfast</label>
+          <label><input type="checkbox" value="Lunch"> Lunch</label>
+          <label><input type="checkbox" value="Dinner"> Dinner</label>
+          <label><input type="checkbox" value="Drinks"> Drinks</label>
+        </fieldset>
+        <div class="field"><label for="n_total">Minutes from booth (typical)</label><input id="n_total" type="number" min="0" max="240" step="1"></div>
+        <div class="field"><label for="n_totalBusy">Minutes when busy</label><input id="n_totalBusy" type="number" min="0" max="240" step="1"></div>
+        <div class="field"><label for="n_meals">What they serve</label><input id="n_meals" maxlength="200" placeholder="e.g. Steakhouse, dinner only"></div>
+        <div class="field"><label for="n_hours">Hours</label><input id="n_hours" maxlength="300"></div>
+        <div class="field"><label for="n_phone">Phone</label><input id="n_phone" type="tel" maxlength="60"></div>
+        <div class="field"><label for="n_bookUrl">Booking link</label><input id="n_bookUrl" type="url" maxlength="500" placeholder="https://www.opentable.com/…"></div>
+        <div class="field"><label for="n_mapUrl">Map link</label><input id="n_mapUrl" type="url" maxlength="500" placeholder="https://maps.app.goo.gl/…"></div>
+        <div class="field wide"><label for="n_bookingNote">Booking notes</label><input id="n_bookingNote" maxlength="400" placeholder="e.g. OpenTable; private room up to 20"></div>
+        <div class="field wide"><label for="n_route">How to get there</label><input id="n_route" maxlength="400"></div>
+        <div class="field wide"><label for="n_watch">Watch out for</label><input id="n_watch" maxlength="400" placeholder="e.g. Closed Tuesdays"></div>
+      </div>
+      <div class="formfoot">
+        <button type="submit" class="btn primary" id="nearSaveBtn">Save</button>
+        <button type="button" class="btn" id="nearCancelBtn">Cancel</button>
+        <span class="msg" id="nearMsg" role="status"></span>
+        <span class="spacer"></span>
+        <button type="button" class="btn danger" id="nearDelBtn" hidden>Remove from list</button>
+      </div>
+    </form>
   </section>
 
   <section id="view" aria-live="polite"></section>
