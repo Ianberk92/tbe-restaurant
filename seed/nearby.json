@@ -293,30 +293,6 @@
     "watch": "Reviews mention slow service; leave extra time before the show opens"
   },
   {
-    "id": "locobueno",
-    "area": "westgate",
-    "booking": "Walk-in",
-    "bookingNote": "Counter service",
-    "distMi": 0.5,
-    "exitMin": 8,
-    "fit": [
-      "Lunch"
-    ],
-    "hotel": "Westgate",
-    "hours": "Closed Mon–Wed; Thu 11:30am–midnight",
-    "insideMin": 5,
-    "mapUrl": "https://maps.google.com/?cid=9767378348107223438",
-    "meals": "Tacos, counter service",
-    "name": "Loco Bueno Tacos",
-    "phone": "702-732-5111 (resort)",
-    "route": "North on Paradise Rd to the Westgate; quick counter service",
-    "total": 21,
-    "totalBusy": 28,
-    "venue": "Westgate",
-    "walkMin": 8,
-    "watch": "Open Thursday only during the show"
-  },
-  {
     "id": "lvccfood",
     "area": "lvcc",
     "booking": "Grab-and-go",
