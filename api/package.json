@@ -1,0 +1,16 @@
+{
+  "name": "replus-dining-holds-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "API for the RE+ 2026 Dining Holds tracker (Azure Functions, Node.js v4 model)",
+  "main": "src/functions/*.js",
+  "scripts": {
+    "start": "func start",
+    "test": "node --test"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@azure/data-tables": "^13.3.0",
+    "@azure/functions": "^4.6.0"
+  }
+}

@@ -1,0 +1,214 @@
+# RE+ 2026 Dining Holds — IT deployment guide
+
+A small internal web app the Executive Office uses to track restaurant holds and reservations for the Terabase team at RE+ 2026 (Las Vegas, Nov 16–19). It also lists recommended restaurants near LVCC Central Hall, grouped by area.
+
+- **Requested by:** Linda Ramos (Executive Office)
+- **Users:** about 10–40 Terabase staff. **One editor** (Linda); everyone else views only.
+- **Lifetime:** event support, through late November 2026. It can be deleted afterward.
+
+---
+
+## Summary for IT
+
+| Item | Choice |
+|---|---|
+| Hosting | **Azure Static Web Apps (Standard plan)**: a static front end plus a managed Azure Functions API (Node.js 20) |
+| Data | **Azure Table Storage**: one table, about 30 rows today, a few hundred at most |
+| Sign-in | **Microsoft Entra ID, Terabase tenant only**, using SWA built-in auth with a custom app registration |
+| Access | Every page and API call requires sign-in. Writes require the SWA custom role **`editor`**, checked at the edge (route rules) and again in the API code |
+| Infra as code | `infra/main.bicep` (SWA, Storage, Log Analytics, App Insights) |
+| CI/CD | `.github/workflows/deploy.yml` (GitHub Actions). Azure DevOps or the SWA CLI also work |
+| Build step | None. Plain HTML and JS; the API has 2 npm dependencies |
+| Est. cost | About US$10–15/month (SWA Standard about $9 plus minimal storage and logging). Check current Azure pricing |
+
+**Why Standard and not Free:** only the Standard plan supports a custom Entra ID registration. That's what limits sign-in to the Terabase tenant; the Free plan's built-in provider accepts any Microsoft account.
+
+---
+
+## Architecture
+
+```
+ Browser (staff, signed in with Terabase Entra ID)
+    │  HTTPS
+    ▼
+ Azure Static Web Apps (Standard)
+    ├─ /.auth/*                → built-in auth, Entra ID (single tenant)
+    ├─ /                       → app/index.html + app/app.js   [role: authenticated]
+    └─ /api/data/{coll}/{id}   → managed Azure Functions (Node 20)
+          GET                  [role: authenticated]
+          PUT/PATCH/DELETE     [role: editor] (reservations only)
+              │
+              ▼
+       Azure Table Storage  (table "dining"; PartitionKey = collection, RowKey = id)
+       Application Insights (API logs and errors)
+```
+
+### Collections
+
+| Collection | What it holds | Who writes |
+|---|---|---|
+| `reservations` | Holds and bookings: date, time, restaurant, host, party size, attendees, confirmation #, cancel-by deadline, notes | Editor, through the app |
+| `nearby` | Curated restaurant list (28 places) with booking type, hours, phone and walk-time estimates | IT/seed script only (read-only in the app) |
+| `areas` | 5 neighborhood descriptions (Paradise Rd, Westgate, North Strip, The LINQ, LVCC) | IT/seed script only |
+
+**Data classification:** Internal. Reservations contain staff and guest names, guest company names and the editor's sign-in email (audit field `updatedBy`). There is **no payment-card or financial-account data**; the form has no field for it. Please remind the editor not to type card numbers into Notes.
+
+---
+
+## Repository layout
+
+```
+app/
+  index.html                 page markup and styles
+  app.js                     front-end logic (calls /api and /.auth/me)
+  staticwebapp.config.json   auth provider, route/role rules, security headers
+api/
+  src/functions/data.js      HTTP API (one function, route data/{collection}/{id?})
+  src/lib/auth.js            reads the SWA client principal and checks roles
+  src/lib/store.js           Table Storage access (@azure/data-tables)
+  src/lib/validate.js        field allow-list and length limits for writes
+  test/api.test.js           unit tests (node --test), no Azure needed
+  host.json, package.json, package-lock.json, local.settings.sample.json
+infra/main.bicep             Azure resources
+scripts/seed.js              loads seed/*.json into the table (idempotent upsert)
+scripts/export.js            backs up all collections to JSON
+seed/areas.json, seed/nearby.json   reference data
+.github/workflows/deploy.yml CI/CD
+```
+
+---
+
+## Deployment steps
+
+### 1. Register the app in Entra ID
+
+1. **Entra admin center → App registrations → New registration**
+   - Name: `RE+ Dining Holds`
+   - Supported account types: **Accounts in this organizational directory only (single tenant)**
+   - Redirect URI (Web): `https://<swa-default-hostname>/.auth/login/aad/callback`. Add it after step 2 when the hostname is known, and also add the custom domain if you use one.
+2. **Authentication:** enable **ID tokens**.
+3. **Certificates & secrets:** create a client secret. Record its expiry; anything past early December 2026 covers the event.
+4. *(Recommended)* **Enterprise applications → RE+ Dining Holds → Properties → Assignment required = Yes**, then assign the RE+ attendee group. This keeps the app limited to the people going.
+5. Note the **Tenant ID**, **Application (client) ID** and **client secret**.
+
+### 2. Create the Azure resources
+
+```bash
+az group create -n rg-replus-dining -l westus2
+az deployment group create -g rg-replus-dining -f infra/main.bicep \
+  -p aadClientId=<client-id> aadClientSecret=<client-secret>
+```
+
+Outputs: `siteUrl`, `staticWebAppName`, `storageAccountName`. The template sets these SWA app settings: `TABLES_CONNECTION_STRING`, `TABLE_NAME`, `AAD_CLIENT_ID`, `AAD_CLIENT_SECRET`, `APPLICATIONINSIGHTS_CONNECTION_STRING`.
+
+Go back to the app registration and add the redirect URI using `siteUrl`.
+
+### 3. Set the tenant in the SWA config
+
+In `app/staticwebapp.config.json`, replace `<TENANT_ID>` in `openIdIssuer` with the Terabase tenant ID and commit the change.
+
+### 4. Deploy the code
+
+**Option A: GitHub Actions (included).** Push this folder to a repo, add the secret `AZURE_STATIC_WEB_APPS_API_TOKEN` (Static Web App → *Manage deployment token*), then push to `main`. The workflow runs the API tests and then deploys. Pull requests get an auth-protected staging URL.
+
+**Option B: SWA CLI (no repo needed).**
+
+```bash
+npm install -g @azure/static-web-apps-cli
+cd api && npm ci && cd ..
+swa deploy ./app --api-location ./api --api-language node --api-version 20 \
+  --env production --deployment-token <token>
+```
+
+**Option C: Azure DevOps.** Use the `AzureStaticWebApp@0` task with `app_location: app`, `api_location: api` and `skip_app_build: true`.
+
+### 5. Load the restaurant data
+
+```bash
+cd api && npm ci && cd ..
+TABLES_CONNECTION_STRING="<connection string from the SWA app settings>" node scripts/seed.js
+# Loaded 5 areas
+# Loaded 28 nearby
+```
+
+The script is safe to re-run. It never touches `reservations` unless a `seed/reservations.json` file exists.
+
+### 6. Give Linda the editor role
+
+**Static Web App → Role management → Invite**
+- Authentication provider: **Microsoft Entra ID**
+- Invitee: `lramos@terabase.energy`
+- Domain: the site's hostname
+- Role: **`editor`**
+
+Send Linda the invitation link. She accepts it once while signed in, and from then on she sees **+ Add reservation**, Edit and Delete. Everyone else signs in and gets view-only access automatically; no invitation is needed.
+
+*Alternative:* if you'd rather manage editors through an Entra group, use SWA's `rolesSource` function to map a group to `editor`. That isn't included here.
+
+### 7. Optional: custom domain
+
+For example `dining.terabase.energy`: **Static Web App → Custom domains**. Add the domain's callback URL to the app registration as well.
+
+### 8. Smoke test
+
+- [ ] Opening the site in a private window redirects to Microsoft sign-in, and only Terabase accounts can sign in.
+- [ ] A regular user sees "View only", with no Add/Edit/Delete buttons.
+- [ ] A regular user calling `PUT /api/data/reservations/test` (for example from browser dev tools) gets **403**.
+- [ ] Linda sees "You can edit", adds a test hold, changes its status and deletes it.
+- [ ] The "Where to eat" tab lists the restaurants and areas.
+- [ ] Export CSV downloads a file.
+- [ ] App Insights shows API requests.
+
+---
+
+## Local development
+
+```bash
+npm install -g azurite @azure/static-web-apps-cli azure-functions-core-tools@4
+azurite-table --inMemoryPersistence &
+cp api/local.settings.sample.json api/local.settings.json
+cd api && npm ci && cd ..
+TABLES_CONNECTION_STRING="UseDevelopmentStorage=true" node scripts/seed.js
+swa start app --api-location api      # http://localhost:4280 (mock sign-in; add role "editor" there)
+```
+
+Unit tests: `cd api && npm test` (6 tests; no Azure resources needed).
+
+---
+
+## Security notes
+
+- **Authentication** happens at the SWA edge. Every route, including `/api/*`, requires the `authenticated` role, and unauthenticated requests redirect to Entra sign-in. GitHub and Twitter login routes are disabled.
+- **Authorization** is enforced twice. SWA route rules limit `PUT`, `PATCH` and `DELETE` on `/api/data/reservations/*` to `editor`, and the API checks the role again from the `x-ms-client-principal` header (which SWA sets and clients cannot forge). Reference collections can't be written through the API at all.
+- **Input validation:** writes accept only an allow-list of reservation fields with length limits. IDs must match `^[A-Za-z0-9_-]{1,64}$`, links must be http(s), and bodies are capped at 32 KB. The front end escapes all data before rendering.
+- **Headers:** CSP (`script-src 'self'`, no inline scripts, no third-party connections), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` and `frame-ancestors 'none'`. The page also sets `noindex`.
+- **Secrets:** the storage connection string and Entra client secret live only in SWA app settings, which are encrypted at rest; they are not in the repo. *Trade-off:* SWA managed functions don't support managed identity, so a storage key is used. If your policy requires managed identity or Key Vault references, deploy the API as a separate Function App with managed identity and link it to the SWA ("bring your own functions"). The code works unchanged; only the connection setup differs.
+- **External resources:** the only one is Google Fonts (CSS and font files). To remove it, self-host the fonts or delete the `<link>` tags; the page falls back to system fonts.
+- **Rotation:** rotate the storage key and client secret after the event, or simply delete the resource group.
+
+## Operations, backup and rollback
+
+- **Monitoring:** API logs and errors go to Application Insights (`<prefix>-ai`). Writes are logged as `PUT|PATCH|DELETE reservations/<id> by <user>`.
+- **Backup:** Table Storage has no point-in-time restore. Run `node scripts/export.js` (with `TABLES_CONNECTION_STRING` set) before the event, nightly during show week if you want, and after the event. It writes `backup-<timestamp>/*.json`.
+- **Data restore:** copy the backup files into `seed/` and run `node scripts/seed.js`.
+- **Code rollback:** redeploy the previous commit (`git revert` and push, or run `swa deploy` from the previous version). Data is unaffected.
+- **Decommission (after Nov 2026):** run `export.js`, give Linda the CSV or JSON, then `az group delete -n rg-replus-dining` and delete the app registration.
+
+## Known limitations
+
+- **Last write wins.** That's fine with a single editor. With several editors, add ETag (`If-Match`) checks in `store.put`.
+- **Updates across devices** arrive by polling every 30 seconds, not instantly.
+- **Restaurant details** (hours, booking policies, walk times) were researched in October 2026 and are estimates. To edit them, change `seed/*.json` and re-run the seed script.
+- **No email or calendar integration.** It's a tracker only; bookings are still made on OpenTable or by phone.
+
+## Questions for IT to decide
+
+1. GitHub vs Azure DevOps for the repo and pipeline.
+2. Whether to require app assignment (step 1.4) and which group to use.
+3. Whether the storage-key setup is acceptable or managed identity is required (see Security notes).
+4. Custom domain name, if any.
+5. Region (default `westus2`) and naming or tagging conventions. Adjust the `prefix` and `tags` parameters.
+
+---
+
+*Origin:* this is a port of a prototype Linda built in Claude (claude.ai). The front end is the same app with its data layer moved from the Claude-hosted store to this API. The reference data in `seed/` was exported from the prototype on 2026-10-13 (28 restaurants after the Oct 13 additions). There were no reservations to migrate yet.

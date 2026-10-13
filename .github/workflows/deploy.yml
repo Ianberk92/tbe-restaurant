@@ -1,0 +1,41 @@
+# Deploys the site and API to Azure Static Web Apps on every push to main.
+# Pull requests get a private staging URL that is removed when the PR closes.
+# Secret needed: AZURE_STATIC_WEB_APPS_API_TOKEN (Static Web App > Manage deployment token).
+name: Deploy RE+ Dining Holds
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    types: [ opened, synchronize, reopened, closed ]
+    branches: [ main ]
+
+jobs:
+  deploy:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Test API
+        run: cd api && npm ci && npm test
+      - name: Deploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: app
+          api_location: api
+          output_location: ""
+          skip_app_build: true
+
+  close_staging:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: close
