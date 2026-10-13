@@ -88,15 +88,12 @@
   }
   const byWhen = (a,b) => (a.date||"9").localeCompare(b.date||"9") || (a.time||"99").localeCompare(b.time||"99");
 
+  /* One line, only when bookings need a decision (deadlines, host conflicts, F1 race day, no confirmation #) */
   function renderSummary(){
-    if(!state.loaded){ $("#summary").innerHTML = ""; return; }
-    const act = state.res.filter(r=>ACTIVE.has(r.status));
-    const holds = act.filter(r=>r.status==="Hold").length;
-    const conf = act.filter(r=>r.status==="Confirmed").length;
-    const covers = act.reduce((s,r)=>s+(Number(r.party)||0),0);
-    const attn = state.res.filter(r=>flagsFor(r).length).length;
-    const pl = (n,w) => n+" "+w+(n===1?"":"s");
-    $("#summary").innerHTML = `<span><b>${holds}</b> ${holds===1?"hold":"holds"}</span><span><b>${conf}</b> confirmed</span><span><b>${covers}</b> ${covers===1?"cover":"covers"}</span>${attn?`<span class="attn">${pl(attn,"booking")} need${attn===1?"s":""} attention</span>`:""}`;
+    const attn = state.loaded ? state.res.filter(r=>flagsFor(r).length).length : 0;
+    $("#summary").innerHTML = attn
+      ? `<button type="button" class="attn" data-goto="bookings">${attn} booking${attn===1?"":"s"} need${attn===1?"s":""} attention →</button>`
+      : "";
   }
 
   function statusControl(r){
@@ -389,6 +386,7 @@
   });
 
   /* ---------- Events ---------- */
+  $("#summary").addEventListener("click", e=>{ if(!e.target.closest("[data-goto]")) return; state.tab="bookings"; remember("tab", state.tab); state.showOff=false; state.mine=false; render(); $("#view").scrollIntoView({block:"start"}); });
   $("#tabs").addEventListener("click", e=>{ const b=e.target.closest(".tab"); if(!b) return; state.tab=b.dataset.tab; remember("tab", state.tab); state.confirmDel=null; render(); });
   $("#view").addEventListener("change", async e=>{
     const t = e.target;
@@ -507,7 +505,7 @@
       const a = document.createElement("a"); a.href = url; a.download = filename;
       document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 1000);
     }};
-    $("#role").innerHTML = (state.isOwner ? "You can <b>edit</b> · others view only" : "View only") + ` · <a href="/.auth/logout" class="signout">Sign out</a>`;
+    $("#role").innerHTML = (state.isOwner ? "<b>Editor</b>" : "View only") + ` · <a href="/.auth/logout" class="signout">Sign out</a>`;
     $("#addBtn").hidden = !state.isOwner;
     $("#exportBtn").hidden = false;
     await loadAll();

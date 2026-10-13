@@ -40,12 +40,9 @@
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45}
 .wrap{max-width:1120px;margin:0 auto;padding-inline:16px;padding-block:0 48px}
 header.top{background:var(--ink);color:var(--ink-fg)}
-header.top .wrap{padding-block:22px 18px;display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between}
-.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-accent)}
-.logo{display:block;height:30px;width:auto;margin-bottom:14px}
-h1{font-family:var(--f-display);font-weight:600;font-size:clamp(30px,5vw,42px);line-height:1.05;margin:4px 0 6px;letter-spacing:-.02em;text-wrap:balance}
-h1 .h1sub{display:block;font-size:.48em;font-weight:500;letter-spacing:0;opacity:.85;margin-top:6px}
-.sub{color:color-mix(in srgb,var(--ink-fg) 75%,transparent);font-size:14px}
+header.top .wrap{padding-block:16px;display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;justify-content:space-between}
+.logo{display:block;height:28px;width:auto;margin-bottom:8px}
+h1{font-family:var(--f-display);font-weight:600;font-size:clamp(26px,4vw,34px);line-height:1;margin:0;letter-spacing:-.02em}
 .role{font-size:13px;padding:6px 10px;border-radius:999px;border:1px solid color-mix(in srgb,var(--ink-fg) 30%,transparent);white-space:nowrap}
 .role b{color:var(--ink-accent)}
 .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:18px}
@@ -116,8 +113,6 @@ textarea{min-height:60px;resize:vertical}
 .fits{display:flex;flex-wrap:wrap;gap:4px}
 .fit{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:4px;background:var(--accent-soft);color:var(--fg)}
 .bk-Grab-and-go{color:var(--off);background:var(--off-bg);--dot:var(--off-dot)}
-.f1{margin-top:12px;background:var(--hold-bg);color:var(--fg);border-left:4px solid var(--hold);border-radius:8px;padding:10px 14px;font-size:14px;max-width:none}
-.f1 b{color:var(--hold)}
 .area{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:18px 0 10px;display:grid;gap:6px}
 .area h3{font-family:var(--f-display);font-weight:600;font-size:22px;margin:0;letter-spacing:-.01em}
 .area p{margin:0;max-width:75ch}
@@ -125,16 +120,11 @@ textarea{min-height:60px;resize:vertical}
 .area .meta b{color:var(--muted);font-weight:600;text-transform:uppercase;font-size:11.5px;letter-spacing:.06em;margin-right:4px}
 .area .f1note{font-size:13.5px;color:var(--hold)}
 .areachip{font-size:11.5px;font-weight:600;padding:2px 7px;border-radius:4px;background:var(--surface-2);color:var(--muted)}
-.sumline{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:16px;font-size:14px;color:var(--muted)}
-.sumline b{color:var(--fg);font-variant-numeric:tabular-nums}
-.sumline .attn{color:var(--bad);font-weight:600}
-details.f1{max-width:none}
-details.f1 summary{cursor:pointer;list-style:none}
-details.f1 summary::-webkit-details-marker{display:none}
-details.f1 .more{color:var(--hold);text-decoration:underline;margin-left:4px}
-details.f1[open] .more{display:none}
-details.f1 ul{margin:8px 0 2px;padding-left:18px;display:grid;gap:4px}
-.nearbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px}
+.sumline{margin-top:16px;font-size:14px}
+.sumline:empty{display:none}
+.sumline .attn{display:inline-flex;gap:8px;align-items:center;font:600 14px var(--f-body);color:var(--bad);background:var(--bad-bg);border:0;border-left:3px solid var(--bad-dot);border-radius:6px;padding:8px 12px;cursor:pointer}
+.sumline .attn:hover{text-decoration:underline}
+details.nearbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .segb{border:0;background:var(--surface);color:var(--muted);font:600 14px var(--f-body);padding:7px 14px;cursor:pointer}
 .segb+.segb{border-left:1px solid var(--line)}
@@ -198,24 +188,14 @@ details.moreform>.grid{margin-top:12px}
   <div class="wrap">
     <div>
       <img class="logo" src="brand/terabase-logo-white.svg" alt="Terabase" height="30" data-brand>
-      <div class="eyebrow">RE+ 2026 · Nov 16–19 (show floor Nov 17–19) · Starting point: LVCC Central Hall</div>
-      <h1>REdine <span class="h1sub">RE+ 2026 Dining Holds</span></h1>
-      <div class="sub">Restaurant holds for the Terabase team. All walk times are measured from the Central Hall show floor (team hotel: The LINQ).</div>
+      <h1>REdine</h1>
     </div>
     <div class="role" id="role">Loading…</div>
   </div>
 </header>
 
 <main class="wrap">
-  <div class="sumline" id="summary" aria-label="Summary"></div>
-  <details class="f1" id="f1box">
-    <summary><b>F1 race week, Nov 19–21.</b> Thursday night of the show is the first race night. <span class="more">Travel tips</span></summary>
-    <ul>
-      <li>Expect closures and heavy traffic on the Strip, Koval Ln, Sands Ave and Harmon Ave from early afternoon Thursday (in 2025, closures began about 1pm), plus lane work earlier in the week. First practice is around 5:30pm.</li>
-      <li>Paradise Rd and the Westgate are outside the race circuit. They're the easiest Thursday dinner spots.</li>
-      <li>From the LINQ, use the Monorail, which runs 24 hours Nov 17–23. For North Strip resorts, use the Vegas Loop. Skip cars and rideshare that day.</li>
-    </ul>
-  </details>
+  <div class="sumline" id="summary" aria-live="polite"></div>
 
   <div class="toolbar">
     <div class="tabs" role="tablist" id="tabs">
