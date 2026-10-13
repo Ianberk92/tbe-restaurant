@@ -165,7 +165,7 @@
     return html;
   }
 
-  const BADGE = {"Reservable":"Book ahead","Walk-in":"Walk in","Unconfirmed":"Call first","Grab-and-go":"Grab & go"};
+  const BADGE = {"Reservable":"Book ahead","Walk-in":"Walk-in only","Unconfirmed":"Call first","Grab-and-go":"Grab & go"};
   /* tel: link from a listed number like "702-678-7777 (resort)" */
   function telHref(phone){
     const d = String(phone||"").replace(/\D/g,"");
@@ -195,7 +195,7 @@
     if(tel) acts.push(`<a class="btn sm" href="${esc(tel)}">Call</a>`);
     acts.push(`<button type="button" class="btn sm" data-act="map" data-id="${esc(n.id)}">Map</button>`);
     const own = state.isOwner
-      ? `<div class="cardfoot"><button class="btn sm" data-act="usenear" data-id="${esc(n.id)}" title="Log a booking you've made here">+ Booking</button><button class="btn sm" data-act="editnear" data-id="${esc(n.id)}">Edit</button></div>`
+      ? `<div class="cardfoot">${n.booking!=="Walk-in" && n.booking!=="Grab-and-go" ? `<button class="btn sm" data-act="usenear" data-id="${esc(n.id)}" title="Log a booking you've made here">+ Booking</button>` : ""}<button class="btn sm" data-act="editnear" data-id="${esc(n.id)}">Edit</button></div>`
       : "";
     return `<article class="card ncard">
         <div class="row1"><button type="button" class="rname link" data-act="map" data-id="${esc(n.id)}">${esc(n.name)}</button><span class="pill bk-${esc(n.booking)}">${esc(BADGE[n.booking]||n.booking||"")}</span></div>

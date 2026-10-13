@@ -48,7 +48,7 @@ A small internal web app the Executive Office uses to track restaurant holds and
 | Collection | What it holds | Who writes |
 |---|---|---|
 | `reservations` | Holds and bookings: date, time, restaurant, host, party size, attendees, confirmation #, cancel-by deadline, notes | Editor, through the app |
-| `nearby` | Restaurant list (28 places to start) with booking type, hours, phone and walk-time estimates | Editors, through the app (Add restaurant / Edit); initial load by seed script |
+| `nearby` | Restaurant list (27 places to start) with booking type, hours, phone and walk-time estimates | Editors, through the app (Add restaurant / Edit); initial load by seed script |
 | `areas` | 5 neighborhood descriptions (Paradise Rd, Westgate, North Strip, The LINQ, LVCC) | IT/seed script only |
 
 **Data classification:** Internal. Reservations contain staff and guest names, guest company names and the editor's sign-in email (audit field `updatedBy`). There is **no payment-card or financial-account data**; the form has no field for it. Please remind editors not to type card numbers into Notes.
@@ -128,7 +128,7 @@ swa deploy ./app --api-location ./api --api-language node --api-version 22 \
 cd api && npm ci && cd ..
 TABLES_CONNECTION_STRING="<connection string from the SWA app settings>" node scripts/seed.js
 # Loaded 5 areas
-# Loaded 28 nearby
+# Loaded 27 nearby
 ```
 
 The script is safe to re-run. By default it only adds rows that aren't in the table yet, so restaurants edited in the app are kept. `--overwrite` replaces existing rows with the seed files (used for restores). It never touches `reservations` unless a `seed/reservations.json` file exists.
@@ -256,4 +256,4 @@ If a file is missing the page simply hides the logo.
 
 ---
 
-*Origin:* this is a port of a prototype Linda built in Claude (claude.ai). The front end is the same app with its data layer moved from the Claude-hosted store to this API. The reference data in `seed/` was exported from the prototype on 2026-10-13 (28 restaurants after the Oct 13 additions). There were no reservations to migrate yet.
+*Origin:* this is a port of a prototype Linda built in Claude (claude.ai). The front end is the same app with its data layer moved from the Claude-hosted store to this API. The reference data in `seed/` was exported from the prototype on 2026-10-13 (28 restaurants after the Oct 13 additions; Loco Bueno Tacos was later removed because it is closed Mon–Wed of show week). There were no reservations to migrate yet.
