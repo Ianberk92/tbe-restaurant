@@ -4,9 +4,13 @@
  *
  *   GET    /api/data/{collection}        list documents   (any signed-in user)
  *   GET    /api/data/{collection}/{id}   one document     (any signed-in user)
- *   PUT    /api/data/reservations/{id}   create/replace   (editor role)
- *   PATCH  /api/data/reservations/{id}   merge fields     (editor role)
- *   DELETE /api/data/reservations/{id}   delete           (editor role)
+ *   PUT    /api/data/{writable}/{id}     create/replace   (editor role)
+ *   PATCH  /api/data/{writable}/{id}     merge fields     (editor role)
+ *   DELETE /api/data/{writable}/{id}     delete           (editor role)
+ *
+ * Writable collections: reservations, nearby (the restaurant list).
+ * Documents include an `etag`. Send it back as an If-Match header on
+ * PUT/DELETE to get 412 instead of overwriting someone else's change.
  *
  * staticwebapp.config.json already limits /api/* to signed-in users and
  * writes to the "editor" role; the checks below repeat that on purpose.
@@ -14,9 +18,10 @@
 const { app } = require('@azure/functions');
 const store = require('../lib/store');
 const { getPrincipal, hasRole, who } = require('../lib/auth');
-const { READABLE, WRITABLE, ID_RE, cleanReservation } = require('../lib/validate');
+const { READABLE, WRITABLE, ID_RE, CLEANERS } = require('../lib/validate');
 
 const MAX_BODY_BYTES = 32 * 1024;
+const CONFLICT = 'Someone else changed this since you opened it. Reload to see their version, then try again.';
 const json = (status, body) => ({ status, jsonBody: body, headers: { 'Cache-Control': 'no-store' } });
 
 async function readBody(request) {
@@ -45,8 +50,12 @@ async function handler(request, context) {
     if (!hasRole(principal, 'editor')) return json(403, { error: 'Editor role required' });
     if (id === undefined) return json(400, { error: 'An id is required' });
 
+    const ifMatch = request.headers.get('if-match') || undefined;
+    if (ifMatch && ifMatch.length > 200) return json(400, { error: 'Invalid If-Match header' });
+    const clean = CLEANERS[collection];
+
     if (request.method === 'DELETE') {
-      await store.remove(collection, id);
+      await store.remove(collection, id, { etag: ifMatch });
       context.log(`DELETE ${collection}/${id} by ${who(principal)}`);
       return { status: 204 };
     }
@@ -55,9 +64,9 @@ async function handler(request, context) {
     if (body.error) return json(400, { error: body.error });
 
     if (request.method === 'PUT') {
-      const clean = cleanReservation(body.value);
-      if (clean.error) return json(400, { error: clean.error });
-      const saved = await store.put(collection, id, clean.value, who(principal));
+      const checked = clean(body.value);
+      if (checked.error) return json(400, { error: checked.error });
+      const saved = await store.put(collection, id, checked.value, who(principal), { etag: ifMatch });
       context.log(`PUT ${collection}/${id} by ${who(principal)}`);
       return json(200, saved);
     }
@@ -65,16 +74,21 @@ async function handler(request, context) {
     if (request.method === 'PATCH') {
       const existing = await store.get(collection, id);
       if (!existing) return json(404, { error: 'Not found' });
-      const clean = cleanReservation(body.value, { partial: true });
-      if (clean.error) return json(400, { error: clean.error });
-      const { id: _drop, ...rest } = existing;
-      const saved = await store.put(collection, id, { ...rest, ...clean.value }, who(principal));
+      const checked = clean(body.value, { partial: true });
+      if (checked.error) return json(400, { error: checked.error });
+      const { id: _drop, etag: readEtag, ...rest } = existing;
+      // Write only if the row is unchanged since this read (or since the caller's If-Match).
+      const saved = await store.put(collection, id, { ...rest, ...checked.value }, who(principal), { etag: ifMatch || readEtag });
       context.log(`PATCH ${collection}/${id} by ${who(principal)}`);
       return json(200, saved);
     }
 
     return json(405, { error: 'Method not allowed' });
   } catch (err) {
+    // Conditional write lost a race: changed (412) or deleted (404) by someone else.
+    if (err.statusCode === 412 || (err.statusCode === 404 && request.method !== 'GET')) {
+      return json(412, { error: CONFLICT });
+    }
     context.error(`API error on ${request.method} ${collection}/${id || ''}: ${err.message}`);
     return json(500, { error: 'Server error. Try again shortly.' });
   }

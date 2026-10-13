@@ -4,7 +4,7 @@
     "identityProviders": {
       "azureActiveDirectory": {
         "registration": {
-          "openIdIssuer": "https://login.microsoftonline.com/<TENANT_ID>/v2.0",
+          "openIdIssuer": "https://login.microsoftonline.com/8033b410-0c8f-4103-9002-068b93b34492/v2.0",
           "clientIdSettingName": "AAD_CLIENT_ID",
           "clientSecretSettingName": "AAD_CLIENT_SECRET"
         }
@@ -16,6 +16,7 @@
     { "route": "/.auth/login/twitter", "statusCode": 404 },
     { "route": "/.auth/login/aad", "allowedRoles": ["anonymous", "authenticated"] },
     { "route": "/api/data/reservations/*", "methods": ["PUT", "PATCH", "DELETE"], "allowedRoles": ["editor"] },
+    { "route": "/api/data/nearby/*", "methods": ["PUT", "PATCH", "DELETE"], "allowedRoles": ["editor"] },
     { "route": "/api/*", "allowedRoles": ["authenticated"] },
     { "route": "/*", "allowedRoles": ["authenticated"] }
   ],
