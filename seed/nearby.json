@@ -3,7 +3,7 @@
     "id": "battistas",
     "area": "linq",
     "booking": "Reservable",
-    "bookingNote": "Reservations strongly recommended; always busy",
+    "bookingNote": "OpenTable (1–20 guests) or call 9am–9pm",
     "exitMin": 8,
     "fit": [
       "Dinner"
@@ -21,31 +21,32 @@
     "venue": "Linq Ln, behind The LINQ",
     "walkLabel": "shuttle or Monorail",
     "walkMin": 10,
-    "watch": "Old-school Italian with wine included; fun for a team night, not a working dinner"
+    "watch": "Old-school Italian with wine included; fun for a team night, not a working dinner",
+    "bookUrl": "https://www.opentable.com/battistas-hole-in-the-wall"
   },
   {
     "id": "benihana",
     "area": "westgate",
     "booking": "Reservable",
-    "bookingNote": "Recommended",
+    "bookingNote": "Benihana's site or OpenTable",
     "distMi": 0.4,
     "exitMin": 8,
     "fit": [
       "Dinner"
     ],
     "hotel": "Westgate",
-    "hours": "",
+    "hours": "Closed Tuesdays; other days about 5–10pm",
     "insideMin": 4,
     "mapUrl": "",
     "meals": "Dinner",
     "name": "Benihana",
-    "phone": "",
+    "phone": "702-732-5334",
     "route": "North on Paradise Rd to the Westgate",
     "total": 19,
     "totalBusy": 26,
     "venue": "Westgate",
     "walkMin": 7,
-    "watch": "Listed as closed Tuesdays; confirm hours"
+    "watch": "Closed Tuesday 11/17"
   },
   {
     "id": "bistro",
@@ -64,7 +65,7 @@
     "mapUrl": "https://maps.google.com/?cid=117559396891265636",
     "meals": "Breakfast, dinner (no lunch)",
     "name": "The Bistro",
-    "phone": "",
+    "phone": "702-791-3600",
     "route": "Across Paradise Rd at the signal",
     "total": 15,
     "totalBusy": 21,
@@ -82,10 +83,10 @@
       "Breakfast"
     ],
     "hotel": "The LINQ and Promenade",
-    "hours": "Daily 7am–5pm",
+    "hours": "Closes 5pm; opening time unconfirmed",
     "insideMin": 5,
     "mapUrl": "https://www.google.com/maps/search/?api=1&query=The+Boss+Cafe+LINQ+Las+Vegas",
-    "meals": "Coffee, breakfast, sandwiches",
+    "meals": "Casual Italian: sandwiches, pizza, coffee",
     "name": "The Boss Café",
     "phone": "",
     "route": "Inside the LINQ hotel",
@@ -94,13 +95,13 @@
     "venue": "The LINQ",
     "walkLabel": "shuttle or Monorail",
     "walkMin": 10,
-    "watch": "Fastest team breakfast on the way to the Monorail"
+    "watch": "Quick team breakfast near the Monorail"
   },
   {
     "id": "carversteak",
     "area": "northstrip",
     "booking": "Reservable",
-    "bookingNote": "Reservations; also hosts semi-private and private group dinners",
+    "bookingNote": "SevenRooms; group events through carversteak.com; business casual",
     "exitMin": 6,
     "fit": [
       "Dinner"
@@ -118,13 +119,14 @@
     "venue": "Resorts World",
     "walkLabel": "Loop queue + ride",
     "walkMin": 10,
-    "watch": "Strong option for a larger customer dinner with a private space"
+    "watch": "Strong option for a larger customer dinner; ask their events team about private space",
+    "bookUrl": "https://www.sevenrooms.com/reservations/carversteak"
   },
   {
     "id": "donsprime",
     "area": "northstrip",
     "booking": "Unconfirmed",
-    "bookingNote": "Classic steakhouse; call to confirm booking policy",
+    "bookingNote": "Likely through Fontainebleau SevenRooms; confirm",
     "exitMin": 6,
     "fit": [
       "Dinner"
@@ -135,14 +137,15 @@
     "mapUrl": "https://www.google.com/maps/search/?api=1&query=Don%27s+Prime+Fontainebleau+Las+Vegas",
     "meals": "Dinner",
     "name": "Don's Prime",
-    "phone": "702-678-9000",
+    "phone": "702-678-7777 (resort)",
     "route": "Loop to the Fontainebleau station",
     "total": 21,
     "totalBusy": 35,
     "venue": "Fontainebleau",
     "walkLabel": "Loop queue + ride",
     "walkMin": 10,
-    "watch": "Quieter than Papi Steak; better for a working dinner"
+    "watch": "Quieter than Papi Steak; better for a working dinner",
+    "bookUrl": "https://www.sevenrooms.com/reservations/fblv"
   },
   {
     "id": "drafts",
@@ -160,11 +163,11 @@
     "mapUrl": "https://maps.google.com/?cid=8304534356822903396",
     "meals": "Lunch, dinner",
     "name": "Drafts Sports Bar & Grill",
-    "phone": "",
+    "phone": "702-732-5111 (resort)",
     "route": "North on Paradise Rd to the Westgate; sports book side",
     "total": 20,
     "totalBusy": 27,
-    "venue": "Westgate",
+    "venue": "Westgate SuperBook",
     "walkMin": 7,
     "watch": "Loud; not for customer meetings"
   },
@@ -173,7 +176,7 @@
     "area": "westgate",
     "bookUrl": "https://www.opentable.com/edge-steakhouse-reservations-las-vegas",
     "booking": "Reservable",
-    "bookingNote": "Required — OpenTable",
+    "bookingNote": "OpenTable",
     "distMi": 0.4,
     "exitMin": 8,
     "fit": [
@@ -203,7 +206,7 @@
       "Dinner"
     ],
     "hotel": "Embassy Suites Convention Center",
-    "hours": "Daily 5–10pm",
+    "hours": "Dinner daily; exact hours not published, call",
     "insideMin": 2,
     "mapUrl": "https://maps.google.com/?q=The+Fountain+Grille+3600+Paradise+Rd+Las+Vegas",
     "meals": "Dinner (hotel breakfast is for guests only)",
@@ -220,14 +223,14 @@
     "id": "fresco",
     "area": "westgate",
     "booking": "Reservable",
-    "bookingNote": "Recommended at peak times",
+    "bookingNote": "OpenTable",
     "distMi": 0.4,
     "exitMin": 8,
     "fit": [
       "Dinner"
     ],
     "hotel": "Westgate",
-    "hours": "Daily 5–10pm",
+    "hours": "Daily, about 5–10pm",
     "insideMin": 4,
     "mapUrl": "https://maps.google.com/?cid=7513953988886357639",
     "meals": "Dinner only",
@@ -238,13 +241,13 @@
     "totalBusy": 26,
     "venue": "Westgate",
     "walkMin": 7,
-    "watch": "Google lists dinner only; one guide says lunch too. Confirm before planning lunch here"
+    "watch": "Dinner only"
   },
   {
     "id": "hashhouse",
     "area": "linq",
-    "booking": "Unconfirmed",
-    "bookingNote": "Popular with lines at peak; call to check reservations",
+    "booking": "Reservable",
+    "bookingNote": "OpenTable (1–20 guests); private events up to 75",
     "exitMin": 8,
     "fit": [
       "Breakfast"
@@ -253,7 +256,7 @@
     "hours": "Mon–Thu 7:30am–3pm",
     "insideMin": 5,
     "mapUrl": "https://www.google.com/maps/search/?api=1&query=Hash+House+A+Go+Go+LINQ+Las+Vegas",
-    "meals": "Breakfast, lunch",
+    "meals": "Breakfast and lunch (dinner Fri–Sat only)",
     "name": "Hash House A Go Go",
     "phone": "702-254-4646",
     "route": "Inside the LINQ hotel, near the Monorail",
@@ -262,19 +265,20 @@
     "venue": "The LINQ",
     "walkLabel": "shuttle or Monorail",
     "walkMin": 10,
-    "watch": "Opens 7:30am. Leave about 40 minutes before you need to be at the booth"
+    "watch": "Opens 7:30am. Leave about 40 minutes before you need to be at the booth",
+    "bookUrl": "https://www.opentable.com/r/hash-house-a-go-go-linq-las-vegas"
   },
   {
     "id": "juniors",
     "area": "northstrip",
     "booking": "Unconfirmed",
-    "bookingNote": "Diner; call to check whether they take reservations",
+    "bookingNote": "No online booking listed; call",
     "exitMin": 6,
     "fit": [
       "Breakfast"
     ],
     "hotel": "Resorts World",
-    "hours": "Daily from 6am",
+    "hours": "Daily 6am–11pm",
     "insideMin": 5,
     "mapUrl": "https://www.google.com/maps/search/?api=1&query=Junior%27s+Resorts+World+Las+Vegas",
     "meals": "Breakfast through dinner",
@@ -299,18 +303,18 @@
       "Lunch"
     ],
     "hotel": "Westgate",
-    "hours": "Daily 7am–midnight",
+    "hours": "Closed Mon–Wed; Thu 11:30am–midnight",
     "insideMin": 5,
     "mapUrl": "https://maps.google.com/?cid=9767378348107223438",
-    "meals": "All day",
+    "meals": "Tacos, counter service",
     "name": "Loco Bueno Tacos",
-    "phone": "702-732-5111",
+    "phone": "702-732-5111 (resort)",
     "route": "North on Paradise Rd to the Westgate; quick counter service",
     "total": 21,
     "totalBusy": 28,
     "venue": "Westgate",
     "walkMin": 8,
-    "watch": ""
+    "watch": "Open Thursday only during the show"
   },
   {
     "id": "lvccfood",
@@ -322,7 +326,7 @@
       "Lunch"
     ],
     "hotel": "LVCC",
-    "hours": "Typically about 10am–4pm on show days",
+    "hours": "At other LVCC shows: food ~10am–4pm, coffee from ~7–8am, earlier close on the last day",
     "insideMin": 10,
     "mapUrl": "",
     "meals": "Coffee, breakfast items, lunch",
@@ -333,22 +337,22 @@
     "totalBusy": 25,
     "venue": "Inside the convention center",
     "walkMin": 0,
-    "watch": "Fastest option; check the RE+ app for Central Hall vendors closer to the show"
+    "watch": "Expect an early close Thu 11/19. Check the RE+ app for Central Hall vendors"
   },
   {
     "id": "maxies",
     "area": "linq",
     "booking": "Unconfirmed",
-    "bookingNote": "Diners suggest booking ahead; confirm with the restaurant",
+    "bookingNote": "Not on OpenTable; call the restaurant",
     "exitMin": 8,
     "fit": [
       "Breakfast"
     ],
     "hotel": "The LINQ and Promenade",
-    "hours": "Mon–Wed 8am–2pm; Thu 8am–10pm",
+    "hours": "Mon–Wed 8am–2pm; Thursday hours vary by listing, call",
     "insideMin": 7,
     "mapUrl": "https://www.google.com/maps/search/?api=1&query=Maxie%27s+LINQ+Promenade+Las+Vegas",
-    "meals": "Breakfast, brunch",
+    "meals": "Breakfast, lunch, dinner",
     "name": "Maxie's",
     "phone": "702-754-4400",
     "route": "On the Promenade, a short walk from the LINQ",
@@ -363,38 +367,39 @@
     "id": "motherwolf",
     "area": "northstrip",
     "booking": "Reservable",
-    "bookingNote": "Reservations",
+    "bookingNote": "Fontainebleau SevenRooms; business casual",
     "exitMin": 6,
     "fit": [
       "Dinner"
     ],
     "hotel": "Fontainebleau",
-    "hours": "Mon–Thu 5–9:30pm",
+    "hours": "Daily 5–11pm",
     "insideMin": 5,
     "mapUrl": "https://www.google.com/maps/search/?api=1&query=Mother+Wolf+Fontainebleau+Las+Vegas",
     "meals": "Dinner",
     "name": "Mother Wolf",
-    "phone": "702-678-9170",
+    "phone": "702-678-7777 (resort)",
     "route": "Loop to the Fontainebleau station",
     "total": 21,
     "totalBusy": 35,
     "venue": "Fontainebleau",
     "walkLabel": "Loop queue + ride",
     "walkMin": 10,
-    "watch": ""
+    "watch": "",
+    "bookUrl": "https://www.sevenrooms.com/reservations/fblv"
   },
   {
     "id": "offthestrip",
     "area": "linq",
-    "booking": "Unconfirmed",
-    "bookingNote": "Call to check; has an upstairs space for groups",
+    "booking": "Reservable",
+    "bookingNote": "OpenTable; private room up to 25, loft up to 50 (702-331-6800)",
     "exitMin": 8,
     "fit": [
       "Breakfast",
       "Dinner"
     ],
     "hotel": "The LINQ and Promenade",
-    "hours": "Mon–Thu 8am–11pm",
+    "hours": "Brunch 8am–2pm; dinner Mon–Thu 2–11pm",
     "insideMin": 5,
     "mapUrl": "https://www.google.com/maps/search/?api=1&query=Off+the+Strip+LINQ+Las+Vegas",
     "meals": "Breakfast, lunch, dinner",
@@ -406,19 +411,20 @@
     "venue": "The LINQ",
     "walkLabel": "shuttle or Monorail",
     "walkMin": 10,
-    "watch": "Loud at dinner; kitchen slows when a large party is upstairs"
+    "watch": "Not on Caesars' current LINQ list; call to confirm it's open",
+    "bookUrl": "https://www.opentable.com/off-the-strip-the-linq"
   },
   {
     "id": "papisteak",
     "area": "northstrip",
     "booking": "Reservable",
-    "bookingNote": "Required; card hold, and diners report a $50 pp late-cancel fee",
+    "bookingNote": "Required; book by phone or Fontainebleau SevenRooms. Private room up to 20. Diners report a late-cancel fee; confirm when booking",
     "exitMin": 6,
     "fit": [
       "Dinner"
     ],
     "hotel": "Fontainebleau",
-    "hours": "Mon–Thu 5:30–10pm",
+    "hours": "From 5:30pm; closing listed as 10pm or 11pm, call",
     "insideMin": 5,
     "mapUrl": "https://www.google.com/maps/search/?api=1&query=Papi+Steak+Fontainebleau+Las+Vegas",
     "meals": "Dinner",
@@ -430,7 +436,8 @@
     "venue": "Fontainebleau",
     "walkLabel": "Loop queue + ride",
     "walkMin": 10,
-    "watch": "Loud, with a DJ and dress code; better for a celebration than a working dinner"
+    "watch": "Loud, with a DJ and dress code; better for a celebration than a working dinner",
+    "bookUrl": "https://www.sevenrooms.com/reservations/fblv"
   },
   {
     "id": "sagebrush",
@@ -461,8 +468,8 @@
   {
     "id": "sids",
     "area": "westgate",
-    "booking": "Walk-in",
-    "bookingNote": "Show up only",
+    "booking": "Unconfirmed",
+    "bookingNote": "Westgate doesn't say; one listing shows online booking. Call the resort",
     "distMi": 0.45,
     "exitMin": 8,
     "fit": [
@@ -470,12 +477,12 @@
       "Lunch"
     ],
     "hotel": "Westgate",
-    "hours": "Daily 7am–2pm",
+    "hours": "Daily 7am–2pm (third-party listing)",
     "insideMin": 5,
     "mapUrl": "https://maps.google.com/?cid=3459049396953335917",
     "meals": "Breakfast, lunch",
     "name": "Sid's Café",
-    "phone": "702-732-5755",
+    "phone": "702-732-5111 (resort)",
     "route": "North on Paradise Rd to the Westgate; café is inside the casino",
     "total": 20,
     "totalBusy": 27,
@@ -487,7 +494,7 @@
     "id": "swsteak",
     "area": "northstrip",
     "booking": "Reservable",
-    "bookingNote": "Book well ahead; ask for a lakeside table",
+    "bookingNote": "SevenRooms; upscale casual chic dress code",
     "exitMin": 6,
     "fit": [
       "Dinner"
@@ -505,13 +512,14 @@
     "venue": "Wynn Las Vegas",
     "walkLabel": "Loop queue + ride",
     "walkMin": 10,
-    "watch": "Top-tier customer dinner; book early for race week"
+    "watch": "Top-tier customer dinner; book early for race week",
+    "bookUrl": "https://www.sevenrooms.com/reservations/swsteakhousewlv"
   },
   {
     "id": "tableau",
     "area": "northstrip",
     "booking": "Reservable",
-    "bookingNote": "Takes reservations",
+    "bookingNote": "SevenRooms; walk-ins as available",
     "exitMin": 6,
     "fit": [
       "Breakfast"
@@ -529,24 +537,25 @@
     "venue": "Wynn Las Vegas",
     "walkLabel": "Loop queue + ride",
     "walkMin": 10,
-    "watch": "Best for a customer staying at Wynn/Encore; allow 25+ min back to LVCC by Loop"
+    "watch": "Best for a customer staying at Wynn/Encore; allow 25+ min back to LVCC by Loop",
+    "bookUrl": "https://www.sevenrooms.com/reservations/tableauwlv"
   },
   {
     "id": "vida",
     "area": "northstrip",
     "booking": "Unconfirmed",
-    "bookingNote": "Café; call to check reservations",
+    "bookingNote": "Call to check reservations; has a private dining room",
     "exitMin": 6,
     "fit": [
       "Breakfast"
     ],
     "hotel": "Fontainebleau",
-    "hours": "Daily 7am–2pm",
+    "hours": "Daily 7am–3pm",
     "insideMin": 5,
     "mapUrl": "https://www.google.com/maps/search/?api=1&query=Vida+Fontainebleau+Las+Vegas",
-    "meals": "Breakfast, brunch",
+    "meals": "Breakfast, lunch",
     "name": "Vida",
-    "phone": "702-678-9000",
+    "phone": "702-678-7777 (resort)",
     "route": "Loop to the Fontainebleau station",
     "total": 21,
     "totalBusy": 35,
@@ -594,7 +603,7 @@
       "Dinner"
     ],
     "hotel": "Renaissance Las Vegas",
-    "hours": "Weekdays 6:30–10:30am, 11am–11pm",
+    "hours": "Breakfast Mon–Fri 6:30–10:30am; lunch 11am–4:30pm; dinner 5–10pm",
     "insideMin": 3,
     "mapUrl": "https://maps.google.com/?cid=4908390907701836915",
     "meals": "Breakfast, lunch, dinner",

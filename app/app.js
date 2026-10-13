@@ -4,7 +4,7 @@
   const DAYS = ["2026-11-16","2026-11-17","2026-11-18","2026-11-19"];
   const ACTIVE = new Set(["Hold","Confirmed"]);
   const state = { res: [], nearby: [], areas: [], loaded:false, nearLoaded:false, isOwner:false, db:null, downloads:null,
-    tab:"nearby", nearMode:"lunch", openAreas:new Set(), f:{host:"",status:"",day:""}, nearF:"", nearMax:"", sort:{key:"date",dir:1}, editing:null, confirmDel:null, err:"" };
+    tab:"nearby", nearMode:"Breakfast", openAreas:new Set(), f:{host:"",status:"",day:""}, nearF:"", nearMax:"", sort:{key:"date",dir:1}, editing:null, confirmDel:null, err:"" };
 
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -47,8 +47,8 @@
       }
     }
     const ar = state.areas.find(a=>a.id===r.area);
-    if(r.date && r.date>="2026-11-19" && r.date<="2026-11-21" && (mins(r.time)??0) >= 15*60 && (!ar || ar.f1Risk)){
-      out.push({lvl:"warn", text:"F1 race night: expect Strip closures. Take the Vegas Loop or add 20+ min"+(ar?"":" (set an Area to check)")});
+    if(r.date && r.date>="2026-11-19" && r.date<="2026-11-21" && (mins(r.time)??0) >= 12*60 && (!ar || ar.f1Risk)){
+      out.push({lvl:"warn", text:"F1 race day: Strip closures likely from early afternoon. Take the Monorail or Vegas Loop, or add 20+ min"+(ar?"":" (set an Area to check)")});
     }
     const t = mins(r.time), host = (r.host||"").trim().toLowerCase();
     if(t!=null && host){
@@ -214,38 +214,43 @@
       </article>`;
   }
 
+  /* Meal views: breakfast, dinner and drinks are grouped by area (where guests stay);
+     lunch is a short closest-first list because the booth lunch is catered. */
+  const MEALS = [
+    ["Breakfast","Breakfast","Grouped by area, closest to Central Hall first. Best when the guest is staying at that hotel."],
+    ["Dinner","Dinner","Grouped by area, closest to Central Hall first. Tap an area to see its restaurants."],
+    ["Drinks","Drinks","Bars for casual customer drinks after the show floor closes."],
+    ["Lunch","Lunch","Booth lunch is catered, so important lunch meetings happen at the booth. These are for overflow or a quick team bite, closest first."]
+  ];
   function viewNearby(){
-    const seg = [["lunch","Lunch near the hall"],["bd","Breakfast, dinner & drinks"]].map(([k,l])=>`<button class="segb" data-near="${k}" aria-pressed="${state.nearMode===k}">${l}</button>`).join("");
+    const mode = MEALS.some(m=>m[0]===state.nearMode) ? state.nearMode : "Breakfast";
+    const seg = MEALS.map(([k,l])=>`<button class="segb" data-near="${k}" aria-pressed="${mode===k}">${l}</button>`).join("");
     const opts = [["","Any booking type"],["Reservable","Reservable"],["Walk-in","Walk-in only"],["Unconfirmed","Unconfirmed"],["Grab-and-go","Grab-and-go"]];
     /* "Close enough": cap on the typical booth-to-table time (the card's headline number) */
     const maxOpts = [["","Any distance"],["15","Within 15 min"],["20","Within 20 min"],["25","Within 25 min"]];
     let html = `<div class="nearbar"><div class="seg" role="group" aria-label="Meal">${seg}</div><select id="fl_near" aria-label="Filter by booking type">${opts.map(([v,l])=>`<option value="${v}"${v===state.nearF?" selected":""}>${l}</option>`).join("")}</select><select id="fl_nearmax" aria-label="Filter by time from your booth">${maxOpts.map(([v,l])=>`<option value="${v}"${v===state.nearMax?" selected":""}>${l}</option>`).join("")}</select></div>`;
     if(!state.nearLoaded) return html + `<div class="empty"><strong>Loading restaurants…</strong></div>`;
-    const maxMin = Number(state.nearMax) || Infinity;
-    const all = state.nearby.filter(n=>(!state.nearF || n.booking===state.nearF) && (Number(n.total)||Infinity) <= maxMin);
-    const has = (n,m) => Array.isArray(n.fit) && n.fit.includes(m);
     const bk = {"Reservable":0,"Unconfirmed":1,"Walk-in":2,"Grab-and-go":3};
-    if(state.nearMode==="lunch"){
-      const lunch = all.filter(n=>has(n,"Lunch")).sort((a,b)=>(Number(a.total)||99)-(Number(b.total)||99) || (bk[a.booking]??4)-(bk[b.booking]??4));
-      html += `<p class="lead">Closest first. Plan 45–60 minutes away from the booth for a seated lunch.</p>`;
-      html += lunch.length?`<div class="near">${lunch.map(nearCard).join("")}</div>`:`<div class="empty">No lunch spots match this filter.</div>`;
-      return html;
+    const maxMin = Number(state.nearMax) || Infinity;
+    const items = state.nearby.filter(n=>(!state.nearF || n.booking===state.nearF) && Array.isArray(n.fit) && n.fit.includes(mode) && (Number(n.total)||Infinity) <= maxMin);
+    html += `<p class="lead">${esc(MEALS.find(m=>m[0]===mode)[2])}</p>`;
+    if(!items.length) return html + `<div class="empty">No ${esc(mode.toLowerCase())} spots match this filter.</div>`;
+    if(mode==="Lunch"){
+      const list = items.sort((a,b)=>(Number(a.total)||99)-(Number(b.total)||99) || (bk[a.booking]??4)-(bk[b.booking]??4));
+      return html + `<div class="near">${list.map(nearCard).join("")}</div>`;
     }
-    const bd = all.filter(n=>has(n,"Breakfast")||has(n,"Dinner")||has(n,"Drinks"));
-    const areas = [...state.areas].sort((x,y)=>(x.order||0)-(y.order||0)).filter(ar=>bd.some(n=>n.area===ar.id));
-    html += `<p class="lead">Grouped by neighborhood, closest to Central Hall first. Tap an area to see its restaurants.</p>`;
-    if(!areas.length) return html + `<div class="empty">No breakfast or dinner spots match this filter.</div>`;
+    const areas = [...state.areas].sort((x,y)=>(x.order||0)-(y.order||0)).filter(ar=>items.some(n=>n.area===ar.id));
     html += areas.map(ar=>{
-      const items = bd.filter(n=>n.area===ar.id).sort((x,y)=>(bk[x.booking]??4)-(bk[y.booking]??4) || (Number(x.total)||99)-(Number(y.total)||99));
+      const list = items.filter(n=>n.area===ar.id).sort((x,y)=>(bk[x.booking]??4)-(bk[y.booking]??4) || (Number(x.total)||99)-(Number(y.total)||99));
       const open = state.openAreas.has(ar.id);
       return `<details class="area" data-area="${esc(ar.id)}"${open?" open":""}>
-        <summary><span class="an">${esc(ar.name)}</span><span class="ac">${items.length} place${items.length===1?"":"s"}${ar.f1Risk?` · <span class="f1tag">F1 zone</span>`:""}</span></summary>
+        <summary><span class="an">${esc(ar.name)}</span><span class="ac">${list.length} place${list.length===1?"":"s"}${ar.f1Risk?` · <span class="f1tag">F1 zone</span>`:""}</span></summary>
         <div class="ab">
           <p>${esc(ar.blurb||"")}</p>
           ${ar.getThere?`<p><span class="k">Getting there</span>${esc(ar.getThere)}</p>`:""}
           ${ar.whoStays?`<p><span class="k">Who stays here</span>${esc(ar.whoStays)}</p>`:""}
           ${ar.f1?`<p class="f1note"><span class="k">F1 week</span>${esc(ar.f1)}</p>`:""}
-          <div class="near">${items.map(nearCard).join("")}</div>
+          <div class="near">${list.map(nearCard).join("")}</div>
         </div></details>`;
     }).join("");
     html += `<p class="note">Times, hours and booking policies are estimates from public listings (October 2026). Confirm before relying on them.</p>`;
