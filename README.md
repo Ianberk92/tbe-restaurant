@@ -109,7 +109,7 @@ In `app/staticwebapp.config.json`, replace `<TENANT_ID>` in `openIdIssuer` with 
 
 ### 4. Deploy the code
 
-**Option A: GitHub Actions (included).** Push this folder to a repo, add the secret `AZURE_STATIC_WEB_APPS_API_TOKEN` (Static Web App → *Manage deployment token*), then push to `main`. The workflow runs the API tests and then deploys. Pull requests get an auth-protected staging URL.
+**Option A: GitHub Actions (included).** Push this folder to a repo, add the secret `AZURE_STATIC_WEB_APPS_API_TOKEN` (Static Web App → *Manage deployment token*), then push to `main`. The workflow runs the API tests and then deploys. Pull requests get an auth-protected staging URL. Until the secret is added, the workflow still runs the tests and skips the deploy steps, so it stays green.
 
 **Option B: SWA CLI (no repo needed).**
 

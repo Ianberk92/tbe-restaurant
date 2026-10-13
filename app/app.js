@@ -4,7 +4,7 @@
   const DAYS = ["2026-11-16","2026-11-17","2026-11-18","2026-11-19"];
   const ACTIVE = new Set(["Hold","Confirmed"]);
   const state = { res: [], nearby: [], areas: [], loaded:false, nearLoaded:false, isOwner:false, db:null, downloads:null,
-    tab:"nearby", nearMode:"lunch", openAreas:new Set(), f:{host:"",status:"",day:""}, nearF:"", sort:{key:"date",dir:1}, editing:null, confirmDel:null, err:"" };
+    tab:"nearby", nearMode:"lunch", openAreas:new Set(), f:{host:"",status:"",day:""}, nearF:"", nearMax:"", sort:{key:"date",dir:1}, editing:null, confirmDel:null, err:"" };
 
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -130,7 +130,7 @@
 
   function emptyState(){
     if(!state.loaded) return `<div class="empty"><strong>Loading reservations…</strong>Connecting to the shared tracker.</div>`;
-    if(state.res.length===0) return `<div class="empty"><strong>No reservations yet</strong>${state.isOwner?"Use “+ Add reservation” to log your first hold, or pick a spot from the Near Central Hall tab.":"Linda hasn’t added any holds yet. Check back closer to the show."}</div>`;
+    if(state.res.length===0) return `<div class="empty"><strong>No reservations yet</strong>${state.isOwner?"Use “+ Add reservation” to log your first hold, or pick a spot from the Where to eat tab.":"Linda hasn’t added any holds yet. Check back closer to the show."}</div>`;
     return `<div class="empty"><strong>Nothing matches these filters</strong>Clear a filter to see more.</div>`;
   }
 
@@ -217,9 +217,12 @@
   function viewNearby(){
     const seg = [["lunch","Lunch near the hall"],["bd","Breakfast, dinner & drinks"]].map(([k,l])=>`<button class="segb" data-near="${k}" aria-pressed="${state.nearMode===k}">${l}</button>`).join("");
     const opts = [["","Any booking type"],["Reservable","Reservable"],["Walk-in","Walk-in only"],["Unconfirmed","Unconfirmed"],["Grab-and-go","Grab-and-go"]];
-    let html = `<div class="nearbar"><div class="seg" role="group" aria-label="Meal">${seg}</div><select id="fl_near" aria-label="Filter by booking type">${opts.map(([v,l])=>`<option value="${v}"${v===state.nearF?" selected":""}>${l}</option>`).join("")}</select></div>`;
+    /* "Close enough": cap on the typical booth-to-table time (the card's headline number) */
+    const maxOpts = [["","Any distance"],["15","Within 15 min"],["20","Within 20 min"],["25","Within 25 min"]];
+    let html = `<div class="nearbar"><div class="seg" role="group" aria-label="Meal">${seg}</div><select id="fl_near" aria-label="Filter by booking type">${opts.map(([v,l])=>`<option value="${v}"${v===state.nearF?" selected":""}>${l}</option>`).join("")}</select><select id="fl_nearmax" aria-label="Filter by time from your booth">${maxOpts.map(([v,l])=>`<option value="${v}"${v===state.nearMax?" selected":""}>${l}</option>`).join("")}</select></div>`;
     if(!state.nearLoaded) return html + `<div class="empty"><strong>Loading restaurants…</strong></div>`;
-    const all = state.nearby.filter(n=>!state.nearF || n.booking===state.nearF);
+    const maxMin = Number(state.nearMax) || Infinity;
+    const all = state.nearby.filter(n=>(!state.nearF || n.booking===state.nearF) && (Number(n.total)||Infinity) <= maxMin);
     const has = (n,m) => Array.isArray(n.fit) && n.fit.includes(m);
     const bk = {"Reservable":0,"Unconfirmed":1,"Walk-in":2,"Grab-and-go":3};
     if(state.nearMode==="lunch"){
@@ -306,6 +309,7 @@
     else if(t.id==="fl_status"){ state.f.status=t.value; render(); }
     else if(t.id==="fl_day"){ state.f.day=t.value; render(); }
     else if(t.id==="fl_near"){ state.nearF=t.value; render(); }
+    else if(t.id==="fl_nearmax"){ state.nearMax=t.value; render(); }
     else if(t.dataset.act==="status" && state.db && state.isOwner){
       try{ await state.db.collection("reservations").doc(t.dataset.id).update({status:t.value, updatedAt:new Date().toISOString()}); }
       catch(err){ state.err="Status change didn’t save. Try again."; render(); }

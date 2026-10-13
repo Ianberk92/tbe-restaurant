@@ -3,7 +3,10 @@
 // a Storage account for Table Storage, and Application Insights for logs.
 //
 //   az deployment group create -g <rg> -f infra/main.bicep \
-//     -p tenantId=<tenant-guid> aadClientId=<app-id> aadClientSecret=<secret>
+//     -p aadClientId=<app-id> aadClientSecret=<secret>
+//
+// The tenant ID is not a parameter here: set it in app/staticwebapp.config.json
+// (openIdIssuer) before deploying the code.
 
 @description('Name prefix for all resources (lowercase letters/numbers).')
 @minLength(3)
