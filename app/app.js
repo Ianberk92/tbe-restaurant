@@ -7,6 +7,11 @@
     tab:"nearby", nearMode:"Breakfast", openAreas:new Set(), f:{host:"",status:"",day:""}, nearF:"", nearMax:"", sort:{key:"date",dir:1}, editing:null, editingEtag:null, editingNear:null, nearDelArmed:false, confirmDel:null, err:"" };
 
   const $ = s => document.querySelector(s);
+  /* Brand logo files live in app/brand/; hide the image cleanly if one hasn't been added yet */
+  document.querySelectorAll("img[data-brand]").forEach(img=>{
+    const hide = ()=>{ img.hidden = true; };
+    if(img.complete && !img.naturalWidth) hide(); else img.addEventListener("error", hide);
+  });
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const safeUrl = u => /^https?:\/\//i.test(u||"") ? u : "";
   /* Message for a failed save; 412 means another editor changed the row first */
