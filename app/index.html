@@ -65,9 +65,7 @@ button{font-family:var(--f-body)}
 .btn.danger{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,var(--line))}
 .btn.sm{font-size:13px;padding:5px 10px}
 .btn:focus-visible,.tab:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
 select,input,textarea{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:7px 9px;min-width:0}
-.filters select{font-size:14px}
 .day{margin-bottom:22px}
 .dayhead{display:flex;align-items:baseline;gap:10px;border-bottom:2px solid var(--fg);padding-bottom:4px;margin-bottom:10px}
 .dayhead h2{font-family:var(--f-display);font-weight:600;font-size:24px;margin:0;letter-spacing:-.01em}
@@ -102,12 +100,6 @@ select,input,textarea{font:inherit;color:var(--fg);background:var(--surface);bor
 a{color:var(--info)}
 .empty{background:var(--surface);border:1px dashed var(--line);border-radius:10px;padding:24px;color:var(--muted)}
 .empty strong{color:var(--fg);display:block;font-size:16px;margin-bottom:4px}
-.tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px}
-table{border-collapse:collapse;width:100%;min-width:900px;font-size:13.5px}
-th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
-th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--surface-2);position:sticky;top:0;cursor:pointer;white-space:nowrap}
-td.num{font-variant-numeric:tabular-nums}
-tr.flagged td:first-child{box-shadow:inset 3px 0 0 var(--bad)}
 .panel{background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:16px;margin-bottom:18px}
 .panel h3{font-family:var(--f-display);font-size:22px;margin:0 0 12px;font-weight:600}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 14px}
@@ -118,23 +110,12 @@ textarea{min-height:60px;resize:vertical}
 .formfoot{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:center}
 .msg{font-size:13px;color:var(--muted)}
 .msg.err{color:var(--bad)}
-.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:13px;color:var(--muted);margin-bottom:12px}
 .near{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
 .near .card .watch{font-size:13px;color:var(--bad)}
 .note{font-size:13px;color:var(--muted);margin-top:14px;max-width:70ch}
-.assume{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13.5px;margin-bottom:12px;max-width:80ch}
-.legs{display:flex;flex-direction:column;gap:6px;background:var(--surface-2);border-radius:8px;padding:8px 10px}
-.legtotal{font-size:13px}
-.legtotal .big{font-family:var(--f-display);font-size:24px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
-.legbar{display:flex;height:8px;border-radius:4px;overflow:hidden;gap:2px}
-.legbar i{display:block;min-width:3px}
-.l1{background:var(--muted)} .l2{background:var(--accent)} .l3{background:var(--info)}
-.legkey{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted)}
-.legkey i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:middle}
 .fits{display:flex;flex-wrap:wrap;gap:4px}
 .fit{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:4px;background:var(--accent-soft);color:var(--fg)}
 .bk-Grab-and-go{color:var(--off);background:var(--off-bg);--dot:var(--off-dot)}
-.hotelh{font-family:var(--f-display);font-weight:600;font-size:19px;margin:16px 0 8px;letter-spacing:-.01em}
 .f1{margin-top:12px;background:var(--hold-bg);color:var(--fg);border-left:4px solid var(--hold);border-radius:8px;padding:10px 14px;font-size:14px;max-width:none}
 .f1 b{color:var(--hold)}
 .area{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:18px 0 10px;display:grid;gap:6px}
@@ -178,10 +159,6 @@ details.area>summary .ac{color:var(--muted);font-size:13px}
 .ab{padding:0 16px 16px;display:grid;gap:8px}
 .ab p{margin:0;max-width:75ch;font-size:14px}
 .ab .f1note{color:var(--hold)}
-.hostgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
-.hostcard h3{font-family:var(--f-display);font-size:22px;margin:0;font-weight:600}
-.hostcard ol{margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:14px}
-.hostcard li span{color:var(--muted)}
 @media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s}}
 .card:hover{border-color:color-mix(in srgb,var(--muted) 60%,var(--line))}
 /* Restaurant form: meal checkboxes */
@@ -190,6 +167,29 @@ fieldset.checks legend{font-size:12px;font-weight:600;color:var(--muted);text-tr
 fieldset.checks label{display:inline-flex;gap:6px;align-items:center;font-size:14px;font-weight:500;color:var(--fg);text-transform:none;letter-spacing:0;cursor:pointer}
 fieldset.checks input{width:auto;padding:0;accent-color:var(--accent)}
 .formfoot .spacer{flex:1}
+/* Simplified booking form */
+.hint{font-size:13px;color:var(--muted);min-height:1em}
+fieldset.days{border:0;padding:0;margin:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;max-width:440px}
+fieldset.days legend{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:0;margin-bottom:4px;width:100%}
+.dayb{border:1px solid var(--line);background:var(--surface);color:var(--fg);font:600 14px var(--f-body);padding:8px 4px;border-radius:7px;cursor:pointer;min-width:0}
+.dayb small{display:block;font-weight:500;color:var(--muted);font-size:12px}
+.dayb[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--ink-fg)}
+.dayb[aria-pressed="true"] small{color:var(--ink-accent)}
+.dayb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+details.moreform{margin-top:14px;border-top:1px dashed var(--line);padding-top:10px}
+details.moreform>summary{cursor:pointer;font-weight:600;color:var(--info);width:max-content}
+details.moreform>.grid{margin-top:12px}
+/* Bookings toolbar */
+.bkbar{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin-bottom:14px}
+.toggle{display:inline-flex;gap:8px;align-items:center;font-size:14px;cursor:pointer}
+.toggle input{width:auto;padding:0;accent-color:var(--accent)}
+/* Simplified restaurant card: name, minutes, one badge, Book / Call / Map */
+.ncard .big{font-family:var(--f-display);font-size:28px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.ncard .big small{font-size:13px;font-weight:500;color:var(--muted);margin-left:4px}
+.ncard .acts{display:flex;flex-wrap:wrap;gap:6px}
+.ncard .acts .btn{text-decoration:none;display:inline-flex;align-items:center}
+.ncard .acts .btn.primary{color:var(--accent-fg)}
+.ncard .areachip{margin-right:6px}
 </style>
 <style>html{color-scheme:light}body{margin:0}[hidden]{display:none!important}img{max-width:100%}.signout{color:inherit}</style>
 </head>
@@ -219,43 +219,48 @@ fieldset.checks input{width:auto;padding:0;accent-color:var(--accent)}
 
   <div class="toolbar">
     <div class="tabs" role="tablist" id="tabs">
-      <button class="tab" role="tab" data-tab="nearby" aria-selected="true">Where to eat</button>
-      <button class="tab" role="tab" data-tab="schedule" aria-selected="false">By day</button>
-      <button class="tab" role="tab" data-tab="host" aria-selected="false">By host</button>
-      <button class="tab" role="tab" data-tab="all" aria-selected="false">All reservations</button>
+      <button class="tab" role="tab" data-tab="nearby" aria-selected="true">Places</button>
+      <button class="tab" role="tab" data-tab="bookings" aria-selected="false">Bookings</button>
     </div>
     <div class="actions">
       <button class="btn" id="exportBtn" hidden>Export CSV</button>
-      <button class="btn primary" id="addBtn" hidden>+ Add reservation</button>
+      <button class="btn primary" id="addBtn" hidden>+ Add booking</button>
     </div>
   </div>
 
   <section class="panel" id="formPanel" hidden aria-labelledby="formTitle">
-    <h3 id="formTitle">Add reservation</h3>
+    <h3 id="formTitle">Add booking</h3>
     <form id="resForm" autocomplete="off">
+      <!-- The five things needed to log a booking; everything else is under "More details" -->
       <div class="grid">
-        <div class="field"><label for="f_date">Date</label><input type="date" id="f_date" min="2026-11-14" max="2026-11-21" required></div>
+        <div class="field wide"><label for="f_restaurant">Restaurant</label><input id="f_restaurant" list="placeList" required placeholder="Start typing, or pick from the list"><span class="hint" id="f_placeHint"></span></div>
+        <fieldset class="field wide days" id="f_days"><legend>Day</legend></fieldset>
         <div class="field"><label for="f_time">Time</label><input type="time" id="f_time" required></div>
-        <div class="field"><label for="f_meal">Meal</label><select id="f_meal"><option>Breakfast</option><option>Lunch</option><option>Dinner</option><option>Drinks</option></select></div>
-        <div class="field"><label for="f_status">Status</label><select id="f_status"><option>Hold</option><option>Confirmed</option><option>Released</option><option>Cancelled</option></select></div>
-        <div class="field"><label for="f_restaurant">Restaurant</label><input id="f_restaurant" required></div>
-        <div class="field"><label for="f_location">Location / property</label><input id="f_location" placeholder="e.g. Westgate, Floor 1"></div>
-        <div class="field"><label for="f_area">Area</label><select id="f_area"><option value="">—</option></select></div>
-        <div class="field"><label for="f_map">Map link</label><input id="f_map" type="url" placeholder="https://maps.app.goo.gl/…"></div>
-        <div class="field"><label for="f_travel">Booth-to-table time (min)</label><input id="f_travel" type="number" min="0" step="5"></div>
+        <div class="field"><label for="f_party">Party size</label><input id="f_party" type="number" min="1" step="1" inputmode="numeric"></div>
         <div class="field"><label for="f_host">Host</label><input id="f_host" list="hostList" required></div>
-        <div class="field"><label for="f_party">Party size</label><input id="f_party" type="number" min="1" step="1"></div>
-        <div class="field"><label for="f_company">Guest company</label><input id="f_company"></div>
-        <div class="field"><label for="f_purpose">Purpose</label><select id="f_purpose"><option value="">—</option><option>Customer</option><option>Partner</option><option>Investor</option><option>Internal</option></select></div>
-        <div class="field wide"><label for="f_attendees">Attendees (internal + guests)</label><input id="f_attendees" placeholder="Names, comma-separated"></div>
-        <div class="field"><label for="f_conf">Confirmation #</label><input id="f_conf"></div>
-        <div class="field"><label for="f_bookedUnder">Booked under (name / phone)</label><input id="f_bookedUnder"></div>
-        <div class="field"><label for="f_platform">Booked via</label><select id="f_platform"><option value="">—</option><option>OpenTable</option><option>Resy</option><option>SevenRooms</option><option>Tock</option><option>Phone / direct</option><option>Hotel concierge</option></select></div>
-        <div class="field"><label for="f_cancelBy">Cancel-by deadline</label><input id="f_cancelBy" type="datetime-local"></div>
-        <div class="field"><label for="f_fee">No-show / late-cancel fee</label><input id="f_fee" placeholder="e.g. $50 pp"></div>
-        <div class="field"><label for="f_deposit">Card guarantee / deposit / min spend</label><input id="f_deposit"></div>
-        <div class="field wide"><label for="f_notes">Notes (dietary, private room, AV)</label><textarea id="f_notes"></textarea></div>
       </div>
+      <details class="moreform" id="f_more">
+        <summary>More details <span class="msg" id="f_moreCount"></span></summary>
+        <div class="grid">
+          <div class="field"><label for="f_status">Status</label><select id="f_status"><option>Hold</option><option>Confirmed</option><option>Released</option><option>Cancelled</option></select></div>
+          <div class="field"><label for="f_conf">Confirmation #</label><input id="f_conf"></div>
+          <div class="field"><label for="f_cancelBy">Cancel-by deadline</label><input id="f_cancelBy" type="datetime-local"></div>
+          <div class="field"><label for="f_fee">No-show / late-cancel fee</label><input id="f_fee" placeholder="e.g. $50 pp"></div>
+          <div class="field"><label for="f_company">Guest company</label><input id="f_company"></div>
+          <div class="field"><label for="f_purpose">Purpose</label><select id="f_purpose"><option value="">—</option><option>Customer</option><option>Partner</option><option>Investor</option><option>Internal</option></select></div>
+          <div class="field wide"><label for="f_attendees">Attendees (internal + guests)</label><input id="f_attendees" placeholder="Names, comma-separated"></div>
+          <div class="field"><label for="f_bookedUnder">Booked under (name / phone)</label><input id="f_bookedUnder"></div>
+          <div class="field"><label for="f_platform">Booked via</label><select id="f_platform"><option value="">—</option><option>OpenTable</option><option>Resy</option><option>SevenRooms</option><option>Tock</option><option>Phone / direct</option><option>Hotel concierge</option></select></div>
+          <div class="field"><label for="f_deposit">Card guarantee / deposit / min spend</label><input id="f_deposit"></div>
+          <div class="field"><label for="f_meal">Meal</label><select id="f_meal"><option value="">Auto (from time)</option><option>Breakfast</option><option>Lunch</option><option>Dinner</option><option>Drinks</option></select></div>
+          <div class="field"><label for="f_date">Other date</label><input type="date" id="f_date" min="2026-11-14" max="2026-11-21"></div>
+          <div class="field"><label for="f_area">Area</label><select id="f_area"><option value="">—</option></select></div>
+          <div class="field"><label for="f_location">Location / property</label><input id="f_location" placeholder="e.g. Westgate, Floor 1"></div>
+          <div class="field"><label for="f_map">Map link</label><input id="f_map" type="url" placeholder="https://maps.app.goo.gl/…"></div>
+          <div class="field"><label for="f_travel">Booth-to-table time (min)</label><input id="f_travel" type="number" min="0" step="1"></div>
+          <div class="field wide"><label for="f_notes">Notes (dietary, private room, AV)</label><textarea id="f_notes"></textarea></div>
+        </div>
+      </details>
       <div class="formfoot">
         <button type="submit" class="btn primary" id="saveBtn">Save</button>
         <button type="button" class="btn" id="cancelBtn">Cancel</button>
@@ -263,6 +268,7 @@ fieldset.checks input{width:auto;padding:0;accent-color:var(--accent)}
       </div>
     </form>
     <datalist id="hostList"></datalist>
+    <datalist id="placeList"></datalist>
   </section>
 
   <section class="panel" id="nearPanel" hidden aria-labelledby="nearTitle">

@@ -4,9 +4,13 @@
   const DAYS = ["2026-11-16","2026-11-17","2026-11-18","2026-11-19"];
   const ACTIVE = new Set(["Hold","Confirmed"]);
   const state = { res: [], nearby: [], areas: [], loaded:false, nearLoaded:false, isOwner:false, db:null, downloads:null,
-    tab:"nearby", nearMode:"Breakfast", openAreas:new Set(), f:{host:"",status:"",day:""}, nearF:"", nearMax:"", sort:{key:"date",dir:1}, editing:null, editingEtag:null, editingNear:null, nearDelArmed:false, confirmDel:null, err:"" };
+    tab:"nearby", nearMode:"Breakfast", openAreas:new Set(), mine:false, showOff:false, me:null, nearF:"", nearMax:"", editing:null, editingEtag:null, editingNear:null, nearDelArmed:false, confirmDel:null, err:"" };
 
   const $ = s => document.querySelector(s);
+  const remember = (k, v) => { try{ localStorage.setItem("redine."+k, JSON.stringify(v)); }catch(_){} };
+  const recall = (k, d) => { try{ const v = localStorage.getItem("redine."+k); return v==null ? d : JSON.parse(v); }catch(_){ return d; } };
+  state.tab = recall("tab", "nearby") === "bookings" ? "bookings" : "nearby";
+  state.mine = !!recall("mine", false);
   /* Brand logo files live in app/brand/; hide the image cleanly if one hasn't been added yet */
   document.querySelectorAll("img[data-brand]").forEach(img=>{
     const hide = ()=>{ img.hidden = true; };
@@ -76,11 +80,11 @@
     return out;
   }
 
-  function filtered(){
-    return state.res.filter(r =>
-      (!state.f.host || (r.host||"")===state.f.host) &&
-      (!state.f.status || (state.f.status==="Active" ? ACTIVE.has(r.status) : r.status===state.f.status)) &&
-      (!state.f.day || r.date===state.f.day));
+  /* "Just mine": match the Host field against the signed-in person's name or email */
+  function isMine(r){
+    const me = state.me; if(!me) return false;
+    const host = (r.host||"").trim().toLowerCase(); if(!host) return false;
+    return me.tokens.includes(host) || (me.first && host.split(/\s+/)[0] === me.first);
   }
   const byWhen = (a,b) => (a.date||"9").localeCompare(b.date||"9") || (a.time||"99").localeCompare(b.time||"99");
 
@@ -127,28 +131,23 @@
     </article>`;
   }
 
-  function filterBar(){
-    const hosts = [...new Set(state.res.map(r=>r.host).filter(Boolean))].sort();
-    const days = [...new Set([...DAYS, ...state.res.map(r=>r.date).filter(Boolean)])].sort();
-    return `<div class="filters">
-      <select id="fl_host" aria-label="Filter by host"><option value="">All hosts</option>${hosts.map(h=>`<option${h===state.f.host?" selected":""}>${esc(h)}</option>`).join("")}</select>
-      <select id="fl_status" aria-label="Filter by status">${[["","All statuses"],["Active","Holds + confirmed"],["Hold","Hold"],["Confirmed","Confirmed"],["Released","Released"],["Cancelled","Cancelled"]].map(([v,l])=>`<option value="${v}"${v===state.f.status?" selected":""}>${l}</option>`).join("")}</select>
-      <select id="fl_day" aria-label="Filter by day"><option value="">All days</option>${days.map(d=>`<option value="${d}"${d===state.f.day?" selected":""}>${esc(dayLabel(d))}</option>`).join("")}</select>
-    </div>`;
+  function emptyState(kind){
+    if(!state.loaded) return `<div class="empty"><strong>Loading bookings…</strong>Connecting to the shared tracker.</div>`;
+    if(kind==="none") return `<div class="empty"><strong>No bookings yet</strong>${state.isOwner?"Use “+ Add booking”, or pick a spot from Places and choose “+ Booking”.":"No holds have been added yet. Check back closer to the show."}</div>`;
+    if(kind==="mine") return `<div class="empty"><strong>Nothing hosted by you yet</strong>Turn off “Just mine” to see everyone’s bookings.</div>`;
+    return `<div class="empty"><strong>No active bookings</strong>Turn on “Show cancelled” to see released and cancelled ones.</div>`;
   }
 
-  function emptyState(){
-    if(!state.loaded) return `<div class="empty"><strong>Loading reservations…</strong>Connecting to the shared tracker.</div>`;
-    if(state.res.length===0) return `<div class="empty"><strong>No reservations yet</strong>${state.isOwner?"Use “+ Add reservation” to log your first hold, or pick a spot from the Where to eat tab.":"No holds have been added yet. Check back closer to the show."}</div>`;
-    return `<div class="empty"><strong>Nothing matches these filters</strong>Clear a filter to see more.</div>`;
-  }
-
-  function viewSchedule(){
-    const list = filtered().sort(byWhen);
-    let html = filterBar();
-    if(!list.length) return html + emptyState();
-    const days = [...new Set(list.map(r=>r.date||""))];
-    for(const d of days){
+  function viewBookings(){
+    const all = [...state.res].sort(byWhen);
+    const offCount = all.filter(r=>!ACTIVE.has(r.status)).length;
+    const list = all.filter(r=>(state.showOff || ACTIVE.has(r.status)) && (!state.mine || isMine(r)));
+    let html = `<div class="bkbar">`
+      + (state.me ? `<label class="toggle"><input type="checkbox" id="fl_mine"${state.mine?" checked":""}> Just mine</label>` : "")
+      + (offCount ? `<label class="toggle"><input type="checkbox" id="fl_off"${state.showOff?" checked":""}> Show cancelled (${offCount})</label>` : "")
+      + `</div>`;
+    if(!list.length) return html + emptyState(!state.res.length ? "none" : state.mine ? "mine" : "active");
+    for(const d of [...new Set(list.map(r=>r.date||""))]){
       const items = list.filter(r=>(r.date||"")===d);
       const covers = items.filter(r=>ACTIVE.has(r.status)).reduce((s,r)=>s+(Number(r.party)||0),0);
       html += `<section class="day"><div class="dayhead"><h2>${esc(dayLabel(d))}</h2><span>${items.length} booking${items.length===1?"":"s"} · ${covers} covers</span></div><div class="cards">${items.map(card).join("")}</div></section>`;
@@ -156,72 +155,45 @@
     return html;
   }
 
-  function viewHost(){
-    const list = filtered().filter(r=>ACTIVE.has(r.status)).sort(byWhen);
-    let html = filterBar();
-    if(!list.length) return html + emptyState();
-    const hosts = [...new Set(list.map(r=>r.host||"Unassigned"))].sort();
-    html += `<div class="hostgrid">` + hosts.map(h=>{
-      const items = list.filter(r=>(r.host||"Unassigned")===h);
-      return `<article class="card hostcard"><h3>${esc(h)}</h3><div class="msg">${items.length} active booking${items.length===1?"":"s"}</div><ol>${items.map(r=>{
-        const fl = flagsFor(r).length?` <span class="pill st-Cancelled">check</span>`:"";
-        const lb = leaveBy(r);
-        return `<li><b>${esc(shortDay(r.date))} ${fmtTime(r.time)}</b> · ${esc(r.restaurant||"")} <span>(${esc(r.party||"?")} · ${esc(r.status)}${r.conf?` · #${esc(r.conf)}`:""}${lb?` · leave booth ${esc(lb)}`:""})</span>${fl}</li>`;}).join("")}</ol></article>`;
-    }).join("") + `</div>`;
-    return html;
+  const BADGE = {"Reservable":"Book ahead","Walk-in":"Walk in","Unconfirmed":"Call first","Grab-and-go":"Grab & go"};
+  /* tel: link from a listed number like "702-678-7777 (resort)" */
+  function telHref(phone){
+    const d = String(phone||"").replace(/\D/g,"");
+    const ten = d.length===11 && d[0]==="1" ? d.slice(1) : d.slice(0,10);
+    return ten.length===10 ? "tel:+1"+ten : "";
   }
-
-  const COLS = [["date","Day"],["time","Time"],["travel","Leave booth"],["meal","Meal"],["restaurant","Restaurant"],["host","Host"],["party","Party"],["status","Status"],["conf","Conf #"],["cancelBy","Cancel by"],["company","Guest co."],["platform","Via"]];
-  function viewAll(){
-    const k = state.sort.key, dir = state.sort.dir;
-    const list = filtered().sort((a,b)=>{
-      const av = a[k] ?? "", bv = b[k] ?? "";
-      const c = (k==="party"||k==="travel") ? (Number(av)||0)-(Number(bv)||0) : String(av).localeCompare(String(bv));
-      return (c || byWhen(a,b)) * dir;
-    });
-    let html = filterBar();
-    if(!list.length) return html + emptyState();
-    html += `<div class="tablewrap"><table><thead><tr>${COLS.map(([key,l])=>`<th data-sort="${key}" scope="col">${l}${state.sort.key===key?(dir>0?" ▲":" ▼"):""}</th>`).join("")}${state.isOwner?"<th scope=\"col\"></th>":""}</tr></thead><tbody>`;
-    html += list.map(r=>{
-      const fl = flagsFor(r);
-      return `<tr class="${fl.length?"flagged":""}" title="${esc(fl.map(f=>f.text).join(" • "))}">
-        <td>${esc(shortDay(r.date))}</td><td class="num">${fmtTime(r.time)}</td><td class="num">${esc(leaveBy(r)||"—")}</td><td>${esc(r.meal||"")}</td>
-        <td><b>${esc(r.restaurant||"")}</b><div class="msg">${esc(r.location||"")}</div></td>
-        <td>${esc(r.host||"")}</td><td class="num">${esc(r.party||"")}</td>
-        <td><span class="pill st-${esc(r.status)}">${esc(r.status||"")}</span></td>
-        <td class="mono">${esc(r.conf||"")}</td><td>${esc(fmtDeadline(r.cancelBy))}</td>
-        <td>${esc(r.company||"")}</td><td>${esc(r.platform||"")}</td>
-        ${state.isOwner?`<td><button class="btn sm" data-act="edit" data-id="${esc(r.id)}">Edit</button></td>`:""}</tr>`;
-    }).join("");
-    return html + `</tbody></table></div>`;
-  }
+  const mapHref = n => safeUrl(n.mapUrl) || "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent([n.name, n.venue, "Las Vegas"].filter(Boolean).join(" "));
 
   function nearCard(n){
-    const map = safeUrl(n.mapUrl), book = safeUrl(n.bookUrl);
+    const book = safeUrl(n.bookUrl), tel = telHref(n.phone);
     const ar = state.areas.find(x=>x.id===n.area);
-    const parts = [];
-    if(Number(n.exitMin)) parts.push(`${esc(n.exitMin)} min to leave the hall`);
-    if(Number(n.walkMin)) parts.push(`${esc(n.walkMin)} min ${esc((n.walkLabel||"walk").toLowerCase())}`);
-    if(Number(n.insideMin)) parts.push(`${esc(n.insideMin)} min ${Number(n.walkMin)?"inside":"in line"}`);
+    const legs = [];
+    if(Number(n.exitMin)) legs.push(`${esc(n.exitMin)} min to leave the hall`);
+    if(Number(n.walkMin)) legs.push(`${esc(n.walkMin)} min ${esc((n.walkLabel||"walk").toLowerCase())}`);
+    if(Number(n.insideMin)) legs.push(`${esc(n.insideMin)} min ${Number(n.walkMin)?"inside":"in line"}`);
     const extra = [
+      n.meals ? `<div><span class="k">Food</span>${esc(n.meals)}</div>` : "",
+      n.hours ? `<div><span class="k">Hours</span>${esc(n.hours)}</div>` : "",
       n.bookingNote ? `<div><span class="k">Booking</span>${esc(n.bookingNote)}</div>` : "",
       n.phone ? `<div><span class="k">Phone</span><span class="mono">${esc(n.phone)}</span></div>` : "",
       n.route ? `<div><span class="k">Route</span>${esc(n.route)}</div>` : "",
-      parts.length ? `<div><span class="k">Time</span>${parts.join(" + ")}</div>` : "",
-      map ? `<div><a href="${esc(map)}" target="_blank" rel="noopener">Open in Maps</a></div>` : ""
+      legs.length ? `<div><span class="k">Time</span>${legs.join(" + ")}${n.totalBusy?` · up to ${esc(n.totalBusy)} min when busy`:""}</div>` : ""
     ].join("");
-    const actions = [];
-    if(book) actions.push(`<a class="btn sm" href="${esc(book)}" target="_blank" rel="noopener">Book online</a>`);
-    if(state.isOwner) actions.push(`<button class="btn sm" data-act="editnear" data-id="${esc(n.id)}">Edit</button>`);
-    if(state.isOwner && n.booking!=="Walk-in" && n.booking!=="Grab-and-go") actions.push(`<button class="btn sm" data-act="usenear" data-id="${esc(n.id)}" title="Opens the reservation form filled in with this restaurant, so you can record a booking you've made">Add to tracker</button>`);
+    const acts = [];
+    if(book) acts.push(`<a class="btn sm primary" href="${esc(book)}" target="_blank" rel="noopener">Book</a>`);
+    if(tel) acts.push(`<a class="btn sm" href="${esc(tel)}">Call</a>`);
+    acts.push(`<a class="btn sm" href="${esc(mapHref(n))}" target="_blank" rel="noopener">Map</a>`);
+    const own = state.isOwner
+      ? `<div class="cardfoot"><button class="btn sm" data-act="usenear" data-id="${esc(n.id)}" title="Log a booking you've made here">+ Booking</button><button class="btn sm" data-act="editnear" data-id="${esc(n.id)}">Edit</button></div>`
+      : "";
     return `<article class="card ncard">
-        <div class="row1"><div class="rname">${esc(n.name)}</div><span class="pill bk-${esc(n.booking)}">${esc(n.booking==="Walk-in"?"Walk-in only":n.booking)}</span></div>
-        <div class="loc">${esc(n.venue||"")}${n.meals?` · ${esc(n.meals)}`:""}</div>
-        ${n.total?`<div class="eta"><b>${esc(n.total)} min</b> from your booth <span class="msg">· up to ${esc(n.totalBusy)} when busy</span></div>`:""}
-        ${n.hours?`<div class="msg">${esc(n.hours)}</div>`:""}
+        <div class="row1"><div class="rname">${esc(n.name)}</div><span class="pill bk-${esc(n.booking)}">${esc(BADGE[n.booking]||n.booking||"")}</span></div>
+        ${n.total?`<div class="big">${esc(n.total)}<small>min from booth</small></div>`:""}
+        <div class="loc">${ar?`<span class="areachip">${esc(ar.short||ar.name)}</span>`:""}${esc(n.venue||"")}</div>
         ${n.watch?`<div class="watch">${esc(n.watch)}</div>`:""}
-        <details class="more"><summary>Details</summary><div class="moreb">${extra}</div></details>
-        ${actions.length?`<div class="cardfoot">${actions.join("")}</div>`:""}
+        <div class="acts">${acts.join("")}</div>
+        ${extra?`<details class="more"><summary>Details</summary><div class="moreb">${extra}</div></details>`:""}
+        ${own}
       </article>`;
   }
 
@@ -236,7 +208,7 @@
   function viewNearby(){
     const mode = MEALS.some(m=>m[0]===state.nearMode) ? state.nearMode : "Breakfast";
     const seg = MEALS.map(([k,l])=>`<button class="segb" data-near="${k}" aria-pressed="${mode===k}">${l}</button>`).join("");
-    const opts = [["","Any booking type"],["Reservable","Reservable"],["Walk-in","Walk-in only"],["Unconfirmed","Unconfirmed"],["Grab-and-go","Grab-and-go"]];
+    const opts = [["","Any booking type"],["Reservable","Book ahead"],["Walk-in","Walk in"],["Unconfirmed","Call first"],["Grab-and-go","Grab & go"]];
     /* "Close enough": cap on the typical booth-to-table time (the card's headline number) */
     const maxOpts = [["","Any distance"],["15","Within 15 min"],["20","Within 20 min"],["25","Within 25 min"]];
     let html = `<div class="nearbar"><div class="seg" role="group" aria-label="Meal">${seg}</div><select id="fl_near" aria-label="Filter by booking type">${opts.map(([v,l])=>`<option value="${v}"${v===state.nearF?" selected":""}>${l}</option>`).join("")}</select><select id="fl_nearmax" aria-label="Filter by time from your booth">${maxOpts.map(([v,l])=>`<option value="${v}"${v===state.nearMax?" selected":""}>${l}</option>`).join("")}</select>${state.isOwner?`<button class="btn sm" data-act="addnear">+ Add restaurant</button>`:""}</div>`;
@@ -271,30 +243,69 @@
   function render(){
     renderSummary();
     document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected", String(b.dataset.tab===state.tab)));
-    const v = state.tab==="schedule"?viewSchedule():state.tab==="host"?viewHost():state.tab==="all"?viewAll():viewNearby();
+    const v = state.tab==="bookings" ? viewBookings() : viewNearby();
     $("#view").innerHTML = (state.err?`<div class="flag bad" style="margin-bottom:12px">${esc(state.err)}</div>`:"") + v;
     for(const fa of [$("#f_area"), $("#n_area")]){ if(fa && fa.options.length !== state.areas.length+1){ const cur = fa.value; fa.innerHTML = `<option value="">—</option>` + [...state.areas].sort((a,b)=>(a.order||0)-(b.order||0)).map(a=>`<option value="${esc(a.id)}">${esc(a.name)}</option>`).join(""); fa.value = cur; } }
     $("#hostList").innerHTML = [...new Set(state.res.map(r=>r.host).filter(Boolean))].map(h=>`<option value="${esc(h)}">`).join("");
+    $("#placeList").innerHTML = [...state.nearby].sort((a,b)=>String(a.name).localeCompare(String(b.name))).map(n=>`<option value="${esc(n.name)}">`).join("");
   }
 
   /* ---------- Form ---------- */
   const FIELDS = {area:"f_area",date:"f_date",time:"f_time",meal:"f_meal",status:"f_status",restaurant:"f_restaurant",location:"f_location",map:"f_map",travel:"f_travel",host:"f_host",party:"f_party",company:"f_company",purpose:"f_purpose",attendees:"f_attendees",conf:"f_conf",bookedUnder:"f_bookedUnder",platform:"f_platform",cancelBy:"f_cancelBy",fee:"f_fee",deposit:"f_deposit",notes:"f_notes"};
+  const ESSENTIAL = new Set(["restaurant","date","time","party","host"]);
+  /* Day buttons for the four show days; "Other date" under More details covers anything else */
+  $("#f_days").insertAdjacentHTML("beforeend", DAYS.map(d=>{
+    const dt = new Date(d+"T12:00:00");
+    return `<button type="button" class="dayb" data-day="${d}" aria-pressed="false">${dt.toLocaleDateString("en-US",{weekday:"short"})}<small>${dt.toLocaleDateString("en-US",{month:"short",day:"numeric"})}</small></button>`;
+  }).join(""));
+  function syncDays(){ const v = $("#f_date").value; document.querySelectorAll(".dayb").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.day===v))); }
+  function syncMoreCount(){
+    const n = Object.entries(FIELDS).filter(([k,id])=>!ESSENTIAL.has(k) && k!=="status" && document.getElementById(id).value.trim()).length;
+    $("#f_moreCount").textContent = n ? `(${n} filled)` : "";
+  }
+  /* Picking a restaurant from Places fills in where it is and how long it takes to get there */
+  function fillFromPlace(){
+    const name = $("#f_restaurant").value.trim().toLowerCase();
+    const n = state.nearby.find(x=>String(x.name||"").toLowerCase()===name);
+    if(!n){ $("#f_placeHint").textContent = ""; return; }
+    $("#f_area").value = n.area || "";
+    $("#f_location").value = n.venue || "";
+    $("#f_map").value = safeUrl(n.mapUrl);
+    $("#f_travel").value = n.totalBusy || n.total || "";
+    if(!$("#f_platform").value){ const m = /(OpenTable|SevenRooms|Resy|Tock)/i.exec(n.bookingNote||""); if(m) $("#f_platform").value = [...$("#f_platform").options].map(o=>o.value).find(v=>v.toLowerCase()===m[1].toLowerCase()) || ""; }
+    $("#f_placeHint").textContent = "Filled in the area, map link and walk time from Places.";
+    syncMoreCount();
+  }
+  /* Meal is optional: when left on Auto it follows the booking time */
+  function mealFor(time){
+    const t = mins(time); if(t==null) return "";
+    return t < 10*60+30 ? "Breakfast" : t < 15*60 ? "Lunch" : t < 21*60+30 ? "Dinner" : "Drinks";
+  }
   function openForm(r, prefill){
     if(!$("#nearPanel").hidden){ $("#nearPanel").hidden = true; state.editingNear = null; }
     state.editing = r ? r.id : null;
     state.editingEtag = r ? r.etag : null;
-    $("#formTitle").textContent = r ? "Edit reservation" : "Add reservation";
+    $("#formTitle").textContent = r ? "Edit booking" : "Add booking";
     const src = r || prefill || {};
     for(const [k,id] of Object.entries(FIELDS)){
       const el = document.getElementById(id);
-      el.value = src[k] ?? (k==="status"?"Hold":k==="meal"?"Dinner":"");
+      el.value = src[k] ?? (k==="status" ? "Hold" : k==="host" && !r && state.me ? state.me.display : "");
     }
+    syncDays(); syncMoreCount();
+    $("#f_placeHint").textContent = "";
+    $("#f_more").open = !!(src.date && !DAYS.includes(src.date));   /* show "Other date" when it holds the date */
     $("#formMsg").textContent = ""; $("#formMsg").className="msg";
     $("#formPanel").hidden = false;
     $("#formPanel").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth", block:"start"});
-    $("#f_date").focus();
+    (src.restaurant ? (document.querySelector(".dayb[aria-pressed=true]") || document.querySelector(".dayb")) : $("#f_restaurant")).focus();
   }
   function closeForm(){ $("#formPanel").hidden = true; state.editing = null; state.editingEtag = null; render(); }
+  $("#f_days").addEventListener("click", e=>{ const b = e.target.closest(".dayb"); if(!b) return; $("#f_date").value = b.dataset.day; syncDays(); });
+  $("#f_date").addEventListener("change", syncDays);
+  $("#f_restaurant").addEventListener("change", fillFromPlace);
+  /* If a field under "More details" fails validation, open the section so the browser can show the problem */
+  $("#resForm").addEventListener("invalid", e=>{ if($("#f_more").contains(e.target)) $("#f_more").open = true; }, true);
+  $("#resForm").addEventListener("input", e=>{ if(!ESSENTIAL.has(Object.keys(FIELDS).find(k=>FIELDS[k]===e.target.id))) syncMoreCount(); });
 
   $("#resForm").addEventListener("submit", async e=>{
     e.preventDefault();
@@ -305,6 +316,8 @@
       if((k==="party"||k==="travel") && v!=="") v = Number(v);
       data[k] = v;
     }
+    if(!data.date){ $("#formMsg").textContent = "Pick a day (or an Other date under More details)."; $("#formMsg").className = "msg err"; return; }
+    if(!data.meal) data.meal = mealFor(data.time);
     data.updatedAt = new Date().toISOString();
     $("#saveBtn").disabled = true; $("#formMsg").textContent = "Saving…"; $("#formMsg").className="msg";
     try{
@@ -376,12 +389,11 @@
   });
 
   /* ---------- Events ---------- */
-  $("#tabs").addEventListener("click", e=>{ const b=e.target.closest(".tab"); if(!b) return; state.tab=b.dataset.tab; state.confirmDel=null; render(); });
+  $("#tabs").addEventListener("click", e=>{ const b=e.target.closest(".tab"); if(!b) return; state.tab=b.dataset.tab; remember("tab", state.tab); state.confirmDel=null; render(); });
   $("#view").addEventListener("change", async e=>{
     const t = e.target;
-    if(t.id==="fl_host"){ state.f.host=t.value; render(); }
-    else if(t.id==="fl_status"){ state.f.status=t.value; render(); }
-    else if(t.id==="fl_day"){ state.f.day=t.value; render(); }
+    if(t.id==="fl_mine"){ state.mine=t.checked; remember("mine", state.mine); render(); }
+    else if(t.id==="fl_off"){ state.showOff=t.checked; render(); }
     else if(t.id==="fl_near"){ state.nearF=t.value; render(); }
     else if(t.id==="fl_nearmax"){ state.nearMax=t.value; render(); }
     else if(t.dataset.act==="status" && state.db && state.isOwner){
@@ -396,8 +408,6 @@
   $("#view").addEventListener("click", async e=>{
     const sb = e.target.closest("[data-near]");
     if(sb){ state.nearMode = sb.dataset.near; render(); return; }
-    const th = e.target.closest("th[data-sort]");
-    if(th){ const k=th.dataset.sort; state.sort = {key:k, dir: state.sort.key===k ? -state.sort.dir : 1}; render(); return; }
     const b = e.target.closest("[data-act]"); if(!b || b.tagName==="SELECT") return;
     const id = b.dataset.id, act = b.dataset.act;
     if(act==="edit"){ const r = state.res.find(x=>x.id===id); if(r) openForm(r); }
@@ -413,8 +423,8 @@
     else if(act==="editnear"){ const n = state.nearby.find(x=>x.id===id); if(n) openNearForm(n); }
     else if(act==="usenear"){
       const n = state.nearby.find(x=>x.id===id); if(!n) return;
-      openForm(null, {area:n.area||"", restaurant:n.name, location:n.venue, map:n.mapUrl, travel:n.totalBusy||n.total||"", status:"Hold", meal:"Dinner",
-        platform:/opentable/i.test(n.bookingNote||"")?"OpenTable":"", bookedUnder:"", notes:""});
+      openForm(null, {restaurant:n.name, status:"Hold", meal: state.nearMode || ""});
+      fillFromPlace();
     }
   });
 
@@ -483,6 +493,14 @@
     let me = null;
     try{ const r = await fetch("/.auth/me", {cache:"no-store"}); me = (await r.json()).clientPrincipal; }catch(_){}
     state.isOwner = !!(me && Array.isArray(me.userRoles) && me.userRoles.includes("editor"));
+    if(me){
+      const claim = t => ((me.claims||[]).find(c=>c.typ===t) || {}).val;
+      const email = String(me.userDetails||"").toLowerCase();
+      const full = String(claim("name") || "").trim();
+      const first = (full.split(/\s+/)[0] || "").toLowerCase();
+      const tokens = [full.toLowerCase(), first, email, email.split("@")[0]].filter(Boolean);
+      if(tokens.length) state.me = { tokens, first, display: full ? full.split(/\s+/)[0] : "" };
+    }
     state.db = db;
     state.downloads = { async save({filename, data}){
       const url = URL.createObjectURL(new Blob([data], {type:"text/csv;charset=utf-8"}));

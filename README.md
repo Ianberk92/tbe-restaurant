@@ -143,7 +143,7 @@ Repeat for each editor (Linda, `lramos@terabase.energy`, plus anyone else who sh
 - Domain: the site's hostname
 - Role: **`editor`**
 
-Send each editor their invitation link. They accept it once while signed in, and from then on see **+ Add reservation**, **+ Add restaurant**, Edit and Delete. Everyone else signs in and gets view-only access automatically; no invitation is needed. Several editors can work at once: if two people edit the same item, the second save is refused with a "someone else changed this" message instead of overwriting the first.
+Send each editor their invitation link. They accept it once while signed in, and from then on see **+ Add booking**, **+ Add restaurant**, Edit and Delete. Everyone else signs in and gets view-only access automatically; no invitation is needed. Several editors can work at once: if two people edit the same item, the second save is refused with a "someone else changed this" message instead of overwriting the first.
 
 *Alternative:* if you'd rather manage editors through an Entra group, use SWA's `rolesSource` function to map a group to `editor`. That isn't included here.
 
@@ -164,7 +164,8 @@ Send each editor their invitation link. They accept it once while signed in, and
 - [ ] A regular user sees "View only", with no Add/Edit/Delete buttons.
 - [ ] A regular user calling `PUT /api/data/reservations/test` (for example from browser dev tools) gets **403**.
 - [ ] An editor sees "You can edit", adds a test hold, changes its status and deletes it.
-- [ ] The "Where to eat" tab lists the restaurants and areas, and "Within 15 min" narrows the list.
+- [ ] The **Places** tab lists the restaurants with **Book / Call / Map** buttons, and "Within 15 min" narrows the list.
+- [ ] **+ Add booking**: picking a restaurant fills in its area and walk time; pick a day, time, party size and save. The **Bookings** tab shows it, and "Just mine" filters to bookings you host.
 - [ ] An editor adds a test restaurant with **+ Add restaurant**, edits it, then removes it.
 - [ ] Export CSV downloads a file.
 - [ ] App Insights shows API requests.
