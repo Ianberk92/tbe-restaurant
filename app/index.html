@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Chivo+Mono:wght@400;500&display=swap">
-<link rel="icon" type="image/svg+xml" href="brand/terabase-mark.svg">
+<link rel="icon" type="image/png" href="brand/terabase-mark.png">
 <style>
 /* Layout: show-floor signage header, summary strip, tabbed views; cards on phone, table for the full list */
 :root{
@@ -113,18 +113,12 @@ textarea{min-height:60px;resize:vertical}
 .fits{display:flex;flex-wrap:wrap;gap:4px}
 .fit{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:4px;background:var(--accent-soft);color:var(--fg)}
 .bk-Grab-and-go{color:var(--off);background:var(--off-bg);--dot:var(--off-dot)}
-.area{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:18px 0 10px;display:grid;gap:6px}
-.area h3{font-family:var(--f-display);font-weight:600;font-size:22px;margin:0;letter-spacing:-.01em}
-.area p{margin:0;max-width:75ch}
-.area .meta{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13.5px}
-.area .meta b{color:var(--muted);font-weight:600;text-transform:uppercase;font-size:11.5px;letter-spacing:.06em;margin-right:4px}
-.area .f1note{font-size:13.5px;color:var(--hold)}
 .areachip{font-size:11.5px;font-weight:600;padding:2px 7px;border-radius:4px;background:var(--surface-2);color:var(--muted)}
 .sumline{margin-top:16px;font-size:14px}
 .sumline:empty{display:none}
 .sumline .attn{display:inline-flex;gap:8px;align-items:center;font:600 14px var(--f-body);color:var(--bad);background:var(--bad-bg);border:0;border-left:3px solid var(--bad-dot);border-radius:6px;padding:8px 12px;cursor:pointer}
 .sumline .attn:hover{text-decoration:underline}
-details.nearbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px}
+.nearbar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-bottom:10px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .segb{border:0;background:var(--surface);color:var(--muted);font:600 14px var(--f-body);padding:7px 14px;cursor:pointer}
 .segb+.segb{border-left:1px solid var(--line)}
@@ -138,17 +132,6 @@ details.nearbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-b
 details.more summary{cursor:pointer;font-size:13px;color:var(--info);width:max-content}
 .moreb{display:grid;gap:4px;font-size:13px;margin-top:6px}
 .k{display:inline-block;min-width:92px;color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-right:6px}
-details.area{background:var(--surface);border:1px solid var(--line);border-radius:10px;margin-bottom:10px}
-details.area>summary{cursor:pointer;padding:14px 16px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;align-items:baseline;list-style:none}
-details.area>summary::-webkit-details-marker{display:none}
-details.area>summary .an{font-family:var(--f-display);font-weight:600;font-size:21px}
-details.area>summary .an::before{content:"▸ ";color:var(--muted)}
-details.area[open]>summary .an::before{content:"▾ "}
-details.area>summary .ac{color:var(--muted);font-size:13px}
-.f1tag{color:var(--hold);font-weight:700}
-.ab{padding:0 16px 16px;display:grid;gap:8px}
-.ab p{margin:0;max-width:75ch;font-size:14px}
-.ab .f1note{color:var(--hold)}
 @media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s}}
 .card:hover{border-color:color-mix(in srgb,var(--muted) 60%,var(--line))}
 /* Restaurant form: meal checkboxes */
@@ -180,6 +163,18 @@ details.moreform>.grid{margin-top:12px}
 .ncard .acts .btn{text-decoration:none;display:inline-flex;align-items:center}
 .ncard .acts .btn.primary{color:var(--accent-fg)}
 .ncard .areachip{margin-right:6px}
+.rname.link{background:none;border:0;padding:0;font:inherit;font-weight:700;font-size:16px;color:var(--fg);text-align:left;cursor:pointer}
+.rname.link:hover{text-decoration:underline}
+.rname.link:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* Today view: when to leave the booth */
+.leave{font-size:14px;background:var(--info-bg);color:var(--info);border-radius:6px;padding:6px 10px}
+.leave b{font-size:16px}
+/* Map popup */
+dialog#mapDlg{width:min(760px,calc(100vw - 32px));max-height:calc(100vh - 32px);border:0;border-radius:12px;padding:16px;background:var(--surface);color:var(--fg);box-shadow:0 8px 32px rgba(0,0,0,.35)}
+dialog#mapDlg::backdrop{background:rgba(24,24,24,.5)}
+.dlghead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:10px}
+.dlghead h3{font-family:var(--f-display);font-size:20px;margin:0;font-weight:600}
+#mapFrame{display:block;width:100%;height:min(60vh,460px);border:1px solid var(--line);border-radius:8px;margin:10px 0 8px;background:var(--surface-2)}
 </style>
 <style>html{color-scheme:light}body{margin:0}[hidden]{display:none!important}img{max-width:100%}.signout{color:inherit}</style>
 </head>
@@ -187,7 +182,7 @@ details.moreform>.grid{margin-top:12px}
 <header class="top">
   <div class="wrap">
     <div>
-      <img class="logo" src="brand/terabase-logo-white.svg" alt="Terabase" height="30" data-brand>
+      <img class="logo" src="brand/terabase-logo-white.png" alt="Terabase" height="30" data-brand>
       <h1>REdine</h1>
     </div>
     <div class="role" id="role">Loading…</div>
@@ -222,7 +217,7 @@ details.moreform>.grid{margin-top:12px}
       <details class="moreform" id="f_more">
         <summary>More details <span class="msg" id="f_moreCount"></span></summary>
         <div class="grid">
-          <div class="field"><label for="f_status">Status</label><select id="f_status"><option>Hold</option><option>Confirmed</option><option>Released</option><option>Cancelled</option></select></div>
+          <div class="field"><label for="f_status">Status</label><select id="f_status"><option>Hold</option><option>Confirmed</option><option>Cancelled</option></select></div>
           <div class="field"><label for="f_conf">Confirmation #</label><input id="f_conf"></div>
           <div class="field"><label for="f_cancelBy">Cancel-by deadline</label><input id="f_cancelBy" type="datetime-local"></div>
           <div class="field"><label for="f_fee">No-show / late-cancel fee</label><input id="f_fee" placeholder="e.g. $50 pp"></div>
@@ -288,6 +283,19 @@ details.moreform>.grid{margin-top:12px}
 
   <section id="view" aria-live="polite"></section>
 </main>
+<dialog id="mapDlg" aria-labelledby="mapTitle">
+  <div class="dlghead">
+    <div><h3 id="mapTitle">Map</h3><div class="msg" id="mapSub"></div></div>
+    <button type="button" class="btn sm" id="mapClose">Close</button>
+  </div>
+  <div class="seg" role="group" aria-label="Route from">
+    <button type="button" class="segb" data-from="lvcc" aria-pressed="true">From Central Hall</button>
+    <button type="button" class="segb" data-from="linq" aria-pressed="false">From The LINQ</button>
+  </div>
+  <iframe id="mapFrame" title="Map of the route to the restaurant" referrerpolicy="no-referrer-when-downgrade"></iframe>
+  <p class="msg" id="mapNote"></p>
+  <a id="mapOpen" class="btn sm" target="_blank" rel="noopener">Open in Google Maps</a>
+</dialog>
 <script src="app.js" defer></script>
 </body>
 </html>

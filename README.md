@@ -164,7 +164,7 @@ Send each editor their invitation link. They accept it once while signed in, and
 - [ ] A regular user sees "View only", with no Add/Edit/Delete buttons.
 - [ ] A regular user calling `PUT /api/data/reservations/test` (for example from browser dev tools) gets **403**.
 - [ ] An editor sees "You can edit", adds a test hold, changes its status and deletes it.
-- [ ] The **Places** tab lists the restaurants with **Book / Call / Map** buttons, and "Within 15 min" narrows the list.
+- [ ] The **Places** tab lists the restaurants closest-first with **Book / Call / Map** buttons; **Walkable** narrows to 20 minutes or less; **Map** (or tapping a name) opens a map with the route from Central Hall or The LINQ.
 - [ ] **+ Add booking**: picking a restaurant fills in its area and walk time; pick a day, time, party size and save. The **Bookings** tab shows it, and "Just mine" filters to bookings you host.
 - [ ] An editor adds a test restaurant with **+ Add restaurant**, edits it, then removes it.
 - [ ] Export CSV downloads a file.
@@ -194,18 +194,18 @@ Unit tests: `cd api && npm test` (10 tests; no Azure resources needed).
 - **Input validation:** writes accept only an allow-list of fields per collection (reservations, restaurants) with length limits; restaurant booking types and meals must come from fixed lists. IDs must match `^[A-Za-z0-9_-]{1,64}$`, links must be http(s), and bodies are capped at 32 KB. The front end escapes all data before rendering.
 - **Headers:** CSP (`script-src 'self'`, no inline scripts, no third-party connections), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` and `frame-ancestors 'none'`. The page also sets `noindex`.
 - **Secrets:** the storage connection string and Entra client secret live only in SWA app settings, which are encrypted at rest; they are not in the repo. *Trade-off:* SWA managed functions don't support managed identity, so a storage key is used. If your policy requires managed identity or Key Vault references, deploy the API as a separate Function App with managed identity and link it to the SWA ("bring your own functions"). The code works unchanged; only the connection setup differs.
-- **External resources:** the only one is Google Fonts (Inter and Chivo Mono, the brand web fonts). To remove it, self-host the fonts or delete the `<link>` tags; the page falls back to Arial, the brand's system-font substitute.
+- **External resources:** Google Fonts (Inter and Chivo Mono, the brand web fonts) and an embedded Google Maps frame in the restaurant map popup (CSP `frame-src` allows only `www.google.com` and `maps.google.com`; it is loaded only when someone opens a map, and it sees only the public restaurant and LVCC addresses). If the embed stops working, the popup's **Open in Google Maps** link still works. To remove it, self-host the fonts or delete the `<link>` tags; the page falls back to Arial, the brand's system-font substitute.
 
 ## Branding
 
 Styled to the Terabase Brand Guidelines (2023): navy `#1B3359` header, orange `#F75200` accents, Inter / Chivo Mono type. Text colors are shades of the brand palette chosen to meet WCAG AA contrast in light and dark mode (tokens and notes are at the top of `app/index.html`).
 
-Logo files go in `app/brand/` (copy them from SharePoint: *TB Docs → 04. Sales & Marketing → LOGO → Terabase Logo*):
+Logo files are in `app/brand/`, exported from SharePoint (*TB Docs → 04. Sales & Marketing → LOGO → Terabase Logo*):
 
 | File in `app/brand/` | SharePoint source |
 |---|---|
-| `terabase-logo-white.svg` | `Primary/Partial White/Terabase_Primary_Logo_Partial_White.svg` (color mark, white wordmark, for the navy header) |
-| `terabase-mark.svg` | `Icon Mark/Full Color/Terabase_Icon_Mark_Full_Color.svg` (browser tab icon) |
+| `terabase-logo-white.png` | `Primary/Partial White/Terabase_Primary_Logo_Partial_White.png` (color mark, white wordmark, for the navy header) |
+| `terabase-mark.png` | `Icon Mark/Full Color/Terabase_Icon_Mark_Full_Color.png` (browser tab icon) |
 
 If a file is missing the page simply hides the logo.
 - **Rotation:** rotate the storage key and client secret after the event, or simply delete the resource group.
