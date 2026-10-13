@@ -9,6 +9,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Chivo+Mono:wght@400;500&display=swap">
 <link rel="icon" type="image/png" href="brand/terabase-mark.png">
+<!-- Home-screen app: icon, browser-bar color, standalone launch -->
+<link rel="apple-touch-icon" href="brand/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest" crossorigin="use-credentials">
+<meta name="theme-color" content="#1B3359">
+<meta name="apple-mobile-web-app-title" content="REdine">
 <style>
 /* Layout: show-floor signage header, summary strip, tabbed views; cards on phone, table for the full list */
 :root{
@@ -163,6 +168,33 @@ details.moreform>.grid{margin-top:12px}
 .ncard .acts .btn{text-decoration:none;display:inline-flex;align-items:center}
 .ncard .acts .btn.primary{color:var(--accent-fg)}
 .ncard .areachip{margin-right:6px}
+/* ---------- Phones ---------- */
+/* Keep content clear of the iPhone notch / rounded corners in landscape */
+.wrap{padding-inline:max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right))}
+/* Touch screens: finger-sized targets (~44px) */
+@media (pointer:coarse){
+  .btn,.tab,.segb,.dayb{min-height:44px}
+  .btn.sm{min-height:40px;padding:8px 12px}
+  .ncard .acts .btn{min-width:64px;justify-content:center}
+  .toggle{min-height:44px}
+  .toggle input,fieldset.checks input{width:20px;height:20px}
+  details.more>summary,details.moreform>summary{padding:10px 0}
+  .rname.link{padding:4px 0}
+  .sumline .attn{min-height:44px}
+  select,input:not([type=checkbox]){min-height:44px}
+  a.btn{display:inline-flex;align-items:center}
+}
+/* 16px text in fields stops iOS Safari zooming in when a field is tapped */
+@media (pointer:coarse),(max-width:640px){
+  input,select,textarea,.cardfoot select{font-size:16px}
+}
+/* Small phones: meal buttons share the full width instead of overflowing */
+@media (max-width:480px){
+  .nearbar .seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));width:100%}
+  .nearbar .segb{padding-inline:4px}
+  .nearbar .segb+.segb{border-left:1px solid var(--line)}
+  dialog#mapDlg{padding:12px}
+}
 .rname.link{background:none;border:0;padding:0;font:inherit;font-weight:700;font-size:16px;color:var(--fg);text-align:left;cursor:pointer}
 .rname.link:hover{text-decoration:underline}
 .rname.link:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -288,9 +320,10 @@ dialog#mapDlg::backdrop{background:rgba(24,24,24,.5)}
     <div><h3 id="mapTitle">Map</h3><div class="msg" id="mapSub"></div></div>
     <button type="button" class="btn sm" id="mapClose">Close</button>
   </div>
+  <span class="msg">Route from</span>
   <div class="seg" role="group" aria-label="Route from">
-    <button type="button" class="segb" data-from="lvcc" aria-pressed="true">From Central Hall</button>
-    <button type="button" class="segb" data-from="linq" aria-pressed="false">From The LINQ</button>
+    <button type="button" class="segb" data-from="lvcc" aria-pressed="true">Central Hall</button>
+    <button type="button" class="segb" data-from="linq" aria-pressed="false">The LINQ</button>
   </div>
   <iframe id="mapFrame" title="Map of the route to the restaurant" referrerpolicy="no-referrer-when-downgrade"></iframe>
   <p class="msg" id="mapNote"></p>

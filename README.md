@@ -227,6 +227,8 @@ Logo files are in `app/brand/`, exported from SharePoint (*TB Docs → 04. Sales
 | `terabase-mark.png` | `Icon Mark/Full Color/Terabase_Icon_Mark_Full_Color.png` (browser tab icon) |
 
 If a file is missing the page simply hides the logo.
+
+**Phones:** the layout is built for phones first (checked at 320–430px wide): finger-sized buttons (~44px), 16px text in fields so iPhones don't zoom in, and room for the notch. People can use **Share → Add to Home Screen** (iPhone) or **Install app** (Android) to get a REdine icon that opens full-screen; `app/manifest.webmanifest` and the `app/brand/icon-*.png` / `apple-touch-icon.png` files (generated from the icon mark) drive that. `/brand/*` and the manifest are the only paths served without sign-in, because phones fetch home-screen icons without the login cookie.
 - **Rotation:** rotate the storage key and client secret after the event, or simply delete the resource group.
 
 ## Operations, backup and rollback
