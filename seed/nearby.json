@@ -661,5 +661,97 @@
     "total": 17,
     "totalBusy": 23,
     "route": "Next to Sagebrush in the Las Vegas Marriott"
+  },
+  {
+    "id": "bontemps",
+    "area": "paradise",
+    "booking": "Unconfirmed",
+    "bookingNote": "Casual cafe; call the hotel to check before bringing a group",
+    "exitMin": 8,
+    "fit": [
+      "Breakfast"
+    ],
+    "hotel": "Mardi Gras Hotel",
+    "hours": "Listed as 24 hours in an older review; confirm",
+    "insideMin": 3,
+    "mapUrl": "https://www.google.com/maps/search/?api=1&query=Bon+Temps+Cafe+Mardi+Gras+Hotel+3500+Paradise+Rd+Las+Vegas",
+    "meals": "Breakfast all day, cafe fare",
+    "name": "Bon Temps Cafe",
+    "phone": "",
+    "route": "South on Paradise Rd, about a block past Convention Center Dr (estimate)",
+    "total": 20,
+    "totalBusy": 26,
+    "venue": "Mardi Gras Hotel, 3500 Paradise Rd",
+    "walkMin": 9,
+    "watch": "Not verified recently: confirm it's open and its hours before planning a group here"
+  },
+  {
+    "id": "fortuna",
+    "area": "westgate",
+    "booking": "Grab-and-go",
+    "bookingNote": "Quick-service counter",
+    "exitMin": 8,
+    "fit": [
+      "Breakfast"
+    ],
+    "hotel": "Westgate",
+    "hours": "Listed as 24 hours; confirm",
+    "insideMin": 4,
+    "mapUrl": "https://www.google.com/maps/search/?api=1&query=Fortuna+Westgate+Las+Vegas",
+    "meals": "Quick bites, breakfast",
+    "name": "Fortuna",
+    "phone": "702-732-5111 (resort)",
+    "route": "North on Paradise Rd to the Westgate",
+    "total": 19,
+    "totalBusy": 25,
+    "venue": "Westgate",
+    "walkMin": 7,
+    "watch": "Hours from a single listing; confirm with the resort"
+  },
+  {
+    "id": "peppermill",
+    "area": "northstrip",
+    "booking": "Unconfirmed",
+    "bookingNote": "Phone reservations taken after 4pm for that day or later (702-735-4177); walk-ins welcome",
+    "exitMin": 8,
+    "fit": [
+      "Breakfast"
+    ],
+    "hotel": "Peppermill (next to Fontainebleau)",
+    "hours": "Mon–Wed 7am–2am; Thu–Sun open 24 hours (official site, Oct 2026)",
+    "insideMin": 5,
+    "mapUrl": "https://www.google.com/maps/search/?api=1&query=Peppermill+Restaurant+2985+S+Las+Vegas+Blvd+Las+Vegas",
+    "meals": "Classic 24-hour diner, big breakfast menu",
+    "name": "Peppermill",
+    "phone": "702-735-4177",
+    "route": "About 1.3 mi: rideshare, or check the Map for walking (estimate)",
+    "total": 30,
+    "totalBusy": 40,
+    "venue": "2985 S Las Vegas Blvd",
+    "walkMin": 17,
+    "watch": "Very busy at peak; call ahead for a group. On the Strip, so allow extra time Thursday (F1)"
+  },
+  {
+    "id": "vivacoffee",
+    "area": "westgate",
+    "booking": "Grab-and-go",
+    "bookingNote": "Coffee counter",
+    "exitMin": 8,
+    "fit": [
+      "Breakfast"
+    ],
+    "hotel": "Westgate",
+    "hours": "Not published; call the resort",
+    "insideMin": 4,
+    "mapUrl": "https://www.google.com/maps/search/?api=1&query=Viva+Coffee+and+Espresso+Westgate+Las+Vegas",
+    "meals": "Coffee and pastries",
+    "name": "Viva Coffee & Espresso",
+    "phone": "702-732-5111 (resort)",
+    "route": "North on Paradise Rd to the Westgate",
+    "total": 19,
+    "totalBusy": 25,
+    "venue": "Westgate",
+    "walkMin": 7,
+    "watch": "Coffee and a pastry on the way in; hours unconfirmed"
   }
 ]

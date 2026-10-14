@@ -209,7 +209,7 @@
         <div class="row1"><button type="button" class="rname link" data-act="map" data-id="${esc(n.id)}">${esc(n.name)}</button><span class="pill bk-${esc(n.booking)}">${esc(BADGE[n.booking]||n.booking||"")}</span></div>
         ${n.total?`<div class="big">${esc(n.total)}<small>${morning?"min to Central Hall":"min from booth"}</small></div>`:""}
         ${morning && n.hours?`<div class="hours"><span class="k">Hours</span>${esc(n.hours)}</div>`:""}
-        <div class="loc">${ar?`<span class="areachip">${esc(ar.short||ar.name)}${ar.f1Risk?" · F1 zone":""}</span>`:""}${esc(n.venue||"")}</div>
+        <div class="loc">${ar && morning?`<span class="areachip">${esc(ar.short||ar.name)}${ar.f1Risk?" · F1 zone":""}</span>`:""}${esc(n.venue||"")}</div>
         ${n.watch?`<div class="watch">${esc(n.watch)}</div>`:""}
         <div class="acts">${acts.join("")}</div>
         ${extra?`<details class="more"><summary>Details</summary><div class="moreb">${extra}</div></details>`:""}
@@ -239,7 +239,7 @@
     const tip = MEALS.find(m=>m[0]===mode)[1];
     html += mode==="Breakfast"
       ? `<p class="lead">Breakfast on the way in: grouped by hotel, closest to the convention center first. Times are from the restaurant to Central Hall, so groups can meet there and walk over together.</p>`
-      : `<p class="lead">Closest to Central Hall first.${tip?" "+esc(tip):""}</p>`;
+      : `<p class="lead">Grouped by area, closest to Central Hall first.${tip?" "+esc(tip):""}</p>`;
     if(!items.length) return html + `<div class="empty">No ${esc(mode.toLowerCase())} spots within ${WALKABLE_MIN} minutes. Turn off “Walkable” to see more.</div>`;
     if(mode==="Breakfast"){
       const hotelOf = n => n.hotel || n.venue || "Other";
@@ -250,7 +250,17 @@
         return `<section class="hotel"><h3 class="hotelh">${esc(h)}${Number.isFinite(mins)?` <span>· ${mins} min to Central Hall</span>`:""}</h3><div class="near">${list.map(n=>nearCard(n, mode)).join("")}</div></section>`;
       }).join("");
     } else {
-      html += `<div class="near">${items.map(n=>nearCard(n, mode)).join("")}</div>`;
+      /* Lunch, dinner, drinks: grouped by area, closest area to Central Hall first */
+      const areaOrder = id => { const a = state.areas.find(x=>x.id===id); return a ? (a.order||0) : 99; };
+      const ids = [...new Set(items.map(n=>n.area||""))].sort((a,b)=>areaOrder(a)-areaOrder(b));
+      html += ids.map(id=>{
+        const ar = state.areas.find(x=>x.id===id);
+        const list = items.filter(n=>(n.area||"")===id);
+        const t = list.map(n=>Number(n.total)).filter(Number.isFinite);
+        const range = t.length ? (Math.min(...t)===Math.max(...t) ? `${Math.min(...t)} min` : `${Math.min(...t)}–${Math.max(...t)} min`) : "";
+        const tip = ar && ar.getThere && ar.getThere!=="Already there" ? ar.getThere.split(/(?<=\.)\s/)[0] : "";
+        return `<section class="hotel"><h3 class="hotelh">${esc(ar ? ar.name : "Other")}${range?` <span>· ${range} from Central Hall</span>`:""}${ar && ar.f1Risk?` <span class="f1tag">· F1 zone Thu</span>`:""}</h3>${tip?`<p class="areatip">${esc(tip)}</p>`:""}<div class="near">${list.map(n=>nearCard(n, mode)).join("")}</div></section>`;
+      }).join("");
     }
     html += `<p class="note">Times, hours and booking policies are estimates from public listings (October 2026). Confirm before relying on them.</p>`;
     return html;
