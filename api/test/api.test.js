@@ -167,36 +167,60 @@ test('config returns the Maps embed key only to signed-in users, and only if wel
   assert.equal(r.jsonBody.mapsEmbedKey, '');
 });
 
-test('editors load new places from seed/ once; existing and removed places are left alone', async () => {
+test('editors load new places from seed/ once; existing, removed and pre-tracking deletions are left alone', async () => {
+  const fs = require('fs'), os = require('os');
+  const realAreas = require('../../seed/areas.json'), realNearby = require('../../seed/nearby.json');
+  const baseline = require('../../seed/baseline.json');
+  // A future update: the shipped seed plus two new places.
+  const extra = [
+    { id: 'newplace1', name: 'New Place One', area: realAreas[0].id, fit: ['Dinner'] },
+    { id: 'newplace2', name: 'New Place Two', area: realAreas[0].id, fit: ['Drinks'] },
+  ];
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'seed-'));
+  fs.writeFileSync(path.join(dir, 'areas.json'), JSON.stringify(realAreas));
+  fs.writeFileSync(path.join(dir, 'nearby.json'), JSON.stringify([...realNearby, ...extra]));
+  fs.writeFileSync(path.join(dir, 'baseline.json'), JSON.stringify(baseline));
+  process.env.SEED_DIR = dir;
   const { handler: updates } = require('../src/functions/updates');
-  const seedNearby = require('../../seed/nearby.json');
-  const seedAreas = require('../../seed/areas.json');
   const call = (method, roles) => updates({ ...req(method, {}, { roles }), params: {} }, ctx);
-  for (const k of [...mem.keys()]) mem.delete(k);
-  // Live table already has one area and one place, edited in the app.
-  mem.set(`areas/${seedAreas[0].id}`, { name: 'kept' });
-  mem.set(`nearby/${seedNearby[0].id}`, { name: 'Edited in app', fit: ['Dinner'] });
+  const reset = () => { for (const k of [...mem.keys()]) mem.delete(k); };
+  try {
+    // Fresh table: everything is offered (first-time setup).
+    reset();
+    const fresh = (await call('GET', ['editor'])).jsonBody;
+    assert.equal(fresh.pending, realNearby.length + extra.length);
+    assert.equal(fresh.areas, realAreas.length);
 
-  assert.equal((await call('GET', null)).status, 401);
-  assert.equal((await call('GET', [])).jsonBody.pending, 0, 'viewers are never offered updates');
-  assert.equal((await call('POST', [])).status, 403);
+    // Live table: all shipped rows loaded, one edited in the app, one deleted before tracking began.
+    reset();
+    for (const a of realAreas) mem.set(`areas/${a.id}`, { name: a.name });
+    for (const n of realNearby.slice(2)) mem.set(`nearby/${n.id}`, { name: n.name, fit: n.fit });
+    mem.set(`nearby/${realNearby[0].id}`, { name: 'Edited in app', fit: ['Dinner'] });
+    // realNearby[1] was removed in the app before update tracking existed.
 
-  const before = (await call('GET', ['editor'])).jsonBody;
-  assert.equal(before.pending, seedNearby.length - 1);
-  assert.equal(before.areas, seedAreas.length - 1);
-  assert.ok(before.names.length > 0 && before.names.length <= 8);
+    assert.equal((await call('GET', null)).status, 401);
+    assert.equal((await call('GET', [])).jsonBody.pending, 0, 'viewers are never offered updates');
+    assert.equal((await call('POST', [])).status, 403);
 
-  const r = await call('POST', ['editor']);
-  assert.equal(r.status, 200);
-  assert.equal(r.jsonBody.added, seedNearby.length - 1 + seedAreas.length - 1);
-  assert.equal(r.jsonBody.places, seedNearby.length - 1);
-  assert.equal(mem.get(`nearby/${seedNearby[0].id}`).name, 'Edited in app', 'existing rows are not overwritten');
-  assert.equal(mem.get(`areas/${seedAreas[0].id}`).name, 'kept');
-  assert.equal((await call('GET', ['editor'])).jsonBody.pending, 0);
+    const before = (await call('GET', ['editor'])).jsonBody;
+    assert.equal(before.pending, 2, 'only the genuinely new places are offered');
+    assert.deepEqual(before.names.sort(), ['New Place One', 'New Place Two']);
+    assert.equal(before.areas, 0);
 
-  // A place removed in the app stays removed on the next update.
-  mem.delete(`nearby/${seedNearby[1].id}`);
-  assert.equal((await call('GET', ['editor'])).jsonBody.pending, 0);
-  assert.equal((await call('POST', ['editor'])).jsonBody.added, 0);
-  assert.ok(!mem.has(`nearby/${seedNearby[1].id}`));
+    const r = await call('POST', ['editor']);
+    assert.equal(r.status, 200);
+    assert.equal(r.jsonBody.places, 2);
+    assert.ok(mem.has('nearby/newplace1') && mem.has('nearby/newplace2'));
+    assert.ok(!mem.has(`nearby/${realNearby[1].id}`), 'a place deleted before tracking stays deleted');
+    assert.equal(mem.get(`nearby/${realNearby[0].id}`).name, 'Edited in app', 'existing rows are not overwritten');
+
+    // A place removed after loading is not offered again.
+    mem.delete('nearby/newplace1');
+    assert.equal((await call('GET', ['editor'])).jsonBody.pending, 0);
+    assert.equal((await call('POST', ['editor'])).jsonBody.added, 0);
+    assert.ok(!mem.has('nearby/newplace1'));
+  } finally {
+    delete process.env.SEED_DIR;
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

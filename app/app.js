@@ -102,9 +102,11 @@
   function renderSummary(){
     const attn = state.loaded ? state.res.filter(r=>flagsFor(r).length).length : 0;
     const up = state.updates;   /* editors only: new places shipped with the app but not yet in the live list */
+    const what = up && up.pending ? `${up.pending} new place${up.pending===1?"":"s"}` : "New areas";
     const upHtml = !up ? "" : up.busy ? `<span class="upd">Adding new places…</span>`
+      : up.failed ? `<button type="button" class="upd" data-act="load-updates">Couldn’t add them. Tap to try again</button>`
       : up.msg ? `<span class="upd">${esc(up.msg)}</span>`
-      : up.pending ? `<button type="button" class="upd" data-act="load-updates" title="${esc(up.names.join(", "))}${up.pending>up.names.length?", …":""}">＋ ${up.pending} new place${up.pending===1?"":"s"} ready: add them to the list</button>` : "";
+      : up.pending || up.areas ? `<button type="button" class="upd" data-act="load-updates" title="${esc(up.names.join(", "))}${up.pending>up.names.length?", …":""}">＋ ${what} ready: add them to the list</button>` : "";
     $("#summary").innerHTML = (attn
       ? `<button type="button" class="attn" data-goto="bookings">${attn} booking${attn===1?"":"s"} need${attn===1?"s":""} attention →</button>`
       : "") + upHtml;
@@ -294,6 +296,7 @@
     "Las Vegas Marriott":{st:"paradise", addr:3300, side:"W", inner:2, q:"Las Vegas Marriott, 325 Convention Center Dr, Las Vegas, NV"},
     "Mardi Gras Hotel":{st:"paradise", addr:3500, side:"E", inner:2, q:"Mardi Gras Hotel & Casino, 3500 Paradise Rd, Las Vegas, NV"},
     "MGM Grand":{st:"strip", addr:3799, side:"E", inner:7, q:"MGM Grand, 3799 S Las Vegas Blvd, Las Vegas, NV"},
+    "Peppermill":{st:"strip", addr:2985, side:"E", inner:1, q:"Peppermill Restaurant, 2985 S Las Vegas Blvd, Las Vegas, NV"},
     "Paris Las Vegas":{st:"strip", addr:3655, side:"E", inner:5, q:"Paris Las Vegas, 3655 S Las Vegas Blvd, Las Vegas, NV"},
     "Renaissance Las Vegas":{st:"paradise", addr:3400, side:"E", inner:2, q:"Renaissance Las Vegas Hotel, 3400 Paradise Rd, Las Vegas, NV"},
     "Residence Inn LVCC":{st:"paradise", addr:3225, side:"W", inner:2, q:"Residence Inn Las Vegas Convention Center, 3225 Paradise Rd, Las Vegas, NV"},
@@ -593,9 +596,9 @@
       try{
         const r = await fetch("/api/updates", {method:"POST", credentials:"same-origin", cache:"no-store"});
         if(!r.ok) throw new Error("HTTP "+r.status);
-        const {places} = await r.json();
-        state.updates = {pending:0, names:[], msg:`Added ${places} new place${places===1?"":"s"}.`};
-      }catch(_){ state.updates = {...state.updates, busy:false, msg:"Couldn’t add the new places. Try again shortly."}; }
+        const {places, added} = await r.json();
+        state.updates = {pending:0, areas:0, names:[], msg: places ? `Added ${places} new place${places===1?"":"s"}.` : `Added ${added} new area${added===1?"":"s"}.`};
+      }catch(_){ state.updates = {...state.updates, busy:false, failed:true}; }   /* keep a retry button */
       await loadAll(); renderSummary();
       return;
     }
@@ -726,7 +729,7 @@
     $("#addBtn").hidden = !state.isOwner;
     $("#exportBtn").hidden = false;
     await loadAll();
-    if(state.isOwner){ try{ const u = await apiCallRaw("/api/updates"); if(u && u.pending){ state.updates = {pending:u.pending, names:u.names||[]}; renderSummary(); } }catch(_){} }
+    if(state.isOwner){ try{ const u = await apiCallRaw("/api/updates"); if(u && (u.pending || u.areas)){ state.updates = {pending:u.pending||0, areas:u.areas||0, names:u.names||[]}; renderSummary(); } }catch(_){} }
     try{ const c = await apiCallRaw("/api/config"); state.mapsKey = (c && c.mapsEmbedKey) || ""; }catch(_){}   /* optional: keyless map if missing */
     setInterval(loadAll, 30000);           /* pick up changes made on other devices */
     setInterval(()=>{ if(state.loaded && $("#formPanel").hidden && $("#nearPanel").hidden) render(); }, 10*60*1000);

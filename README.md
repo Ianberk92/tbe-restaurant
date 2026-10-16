@@ -70,7 +70,7 @@ api/
   test/api.test.js           unit tests (node --test), no Azure needed
   host.json, package.json, package-lock.json, local.settings.sample.json
 infra/main.bicep             Azure resources
-scripts/seed.js              loads seed/*.json into the table (adds missing rows; --overwrite replaces)
+scripts/seed.js              loads seed/*.json into the table (adds new rows only; --overwrite restores)
 scripts/load.sh              one-step load from Azure Cloud Shell (clone, install, read conn string, seed)
 scripts/export.js            backs up all collections to JSON
 seed/areas.json, seed/nearby.json   reference data
@@ -132,9 +132,9 @@ TABLES_CONNECTION_STRING="<connection string from the SWA app settings>" node sc
 # Loaded 57 nearby
 ```
 
-**Later data updates (no Azure access needed):** after new restaurants are merged into `seed/` and deployed, editors see a "＋ N new places ready" button at the top of the app. Tapping it adds only the missing places. Rows already in the table are never changed, and places removed in the app aren't offered again. It's backed by `api/src/functions/updates.js`, and the deploy workflow copies `seed/` into the API.
+**Later data updates (no Azure access needed):** after new restaurants are merged into `seed/` and deployed, editors see a "＋ N new places ready" button at the top of the app. Tapping it adds only the missing places. Rows already in the table are never changed, and places removed in the app aren't offered again. It's backed by `api/src/functions/updates.js` and `api/src/lib/seedsync.js`, and the deploy workflow copies `seed/` into the API. Add new places to `seed/nearby.json` / `seed/areas.json` only. `seed/baseline.json` lists what had already shipped before tracking began, so don't add new ids there.
 
-The script is safe to re-run. By default it only adds rows that aren't in the table yet, so restaurants edited in the app are kept. `--overwrite` replaces existing rows with the seed files (used for restores). It never touches `reservations` unless a `seed/reservations.json` file exists.
+The script is safe to re-run. By default it only adds rows that aren't in the table yet, so restaurants edited in the app are kept, and it follows the same rule as the in-app button, so places removed in the app don't come back. `--overwrite` replaces existing rows with the seed files (used for restores). It never touches `reservations` unless a `seed/reservations.json` file exists.
 
 ### 6. Give editors the editor role
 
