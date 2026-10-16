@@ -178,7 +178,7 @@
     return ten.length===10 ? "tel:+1"+ten : "";
   }
 
-  function nearCard(n, mode){
+  function nearCard(n, mode, walk){
     const morning = mode === "Breakfast";
     const book = safeUrl(n.bookUrl), tel = telHref(n.phone);
     const ar = state.areas.find(x=>x.id===n.area);
@@ -212,7 +212,9 @@
       : "";
     return `<article class="card ncard">
         <div class="row1"><button type="button" class="rname link" data-act="map" data-id="${esc(n.id)}">${esc(n.name)}</button><span class="pill bk-${esc(n.booking)}">${esc(BADGE[n.booking]||n.booking||"")}</span></div>
-        ${n.total?`<div class="big">${esc(n.total)}<small>${morning?"min to Central Hall":"min from booth"}</small></div>`:""}
+        ${walk
+          ? (walk.mins!=null ? `<div class="big">≈${esc(walk.mins)}<small>min walk from ${esc(walk.from)}</small></div>` : `<div class="hours">Tap Map for the walk from ${esc(walk.from)}</div>`)
+          : n.total?`<div class="big">${esc(n.total)}<small>${morning?"min to Central Hall":"min from booth"}</small></div>`:""}
         ${morning && n.hours?`<div class="hours"><span class="k">Hours</span>${esc(n.hours)}</div>`:""}
         <div class="loc">${esc(n.venue||"")}</div>
         ${n.watch?`<div class="watch">${esc(n.watch)}</div>`:""}
@@ -236,37 +238,104 @@
   const MONORAIL = {sahara:"2 Monorail stops north", linq:"1 Monorail stop south", flamingo:"2 Monorail stops south", paris:"3 Monorail stops south", mgm:"4 Monorail stops south"};
   const NEAR_LVCC = new Set(["lvcc","paradise","westgate","northstrip"]);   /* walk or Vegas Loop from Central Hall */
   const NOT_HOTELS = /^(LVCC|Peppermill)\b/;   /* venues listed in the hotel field that aren't hotels */
-  const ZONES = [["lvcc","Near LVCC","What’s closest to the booth"],["hotel","Near a hotel","Meet at your customer’s hotel"]];
+  const ZONES = [["lvcc","Near LVCC","What’s closest to the booth"],["hotel","Near a hotel","Dine near your customer’s hotel"]];
   /* "MGM Grand (inside Luchini)" -> "MGM Grand"; "The LINQ and Promenade" -> "The LINQ" */
   const hotelName = n => String(n.hotel || "").replace(/\s*\(.*\)\s*$/, "").replace(/ and Promenade$/, "").trim();
+  /* RE+ 2026 housing block (list from the RE+ housing page, Oct 2026), mapped to the places we list.
+     at:   hotel names (as in the restaurant data) that count as "at" this hotel
+     area: where its "Next door" places come from (all places in that area that aren't "at")
+     near: instead of the area, exactly these hotels' places (for hotels with nothing of their own)
+     note: one line shown under the picker */
+  const HOUSING = [
+    {name:"Caesars Palace", at:["Caesars Palace"], area:"flamingo"},
+    {name:"Courtyard LVCC", at:["Courtyard LVCC"], area:"paradise"},
+    {name:"Embassy Suites Convention Center", at:["Embassy Suites Convention Center"], area:"paradise"},
+    {name:"Harrah's", at:[], area:"linq", near:["The LINQ","Flamingo"], note:"Next door to The LINQ Promenade."},
+    {name:"Hilton Grand Vacations on the Strip", at:[], area:"", near:["SAHARA","Fontainebleau"], note:"Nearest places we list. Check the walk on the map."},
+    {name:"Hilton Grand Vacations Paradise", at:[], area:"paradise", note:"Nearest places we list. Check the walk on the map."},
+    {name:"Las Vegas Marriott", at:["Las Vegas Marriott"], area:"paradise"},
+    {name:"MGM Grand", at:["MGM Grand"], area:"mgm"},
+    {name:"Renaissance Las Vegas", at:["Renaissance Las Vegas"], area:"paradise"},
+    {name:"Residence Inn LVCC", at:[], area:"paradise", note:"Next to Courtyard LVCC on Paradise Rd."},
+    {name:"Resorts World (Conrad, Hilton, Crockfords)", at:["Resorts World"], area:"northstrip"},
+    {name:"SAHARA", at:["SAHARA"], area:"sahara"},
+    {name:"SpringHill Suites LVCC", at:[], area:"paradise", note:"On Paradise Rd by the convention center."},
+    {name:"The LINQ", at:["The LINQ"], area:"linq", near:["Flamingo"], note:"Terabase team hotel."},
+    {name:"Treasure Island", at:[], area:"", near:["Wynn / Encore"], note:"Nothing listed at TI yet. Closest: Wynn / Encore, about a 10–15 min walk."},
+    {name:"Westgate", at:["Westgate"], area:"westgate"},
+    {name:"Wynn / Encore", at:["Wynn / Encore"], area:"northstrip"}
+  ];
+  /* RE+ hotels first, then any other hotel we have places for (customers outside the block) */
   function hotelList(){
-    const best = new Map();   /* hotel -> closest minutes to Central Hall, for ordering */
+    const covered = new Set(HOUSING.flatMap(h=>h.at));
+    const others = new Map();
     for(const n of state.nearby){
-      const h = hotelName(n); if(!h || NOT_HOTELS.test(h)) continue;
-      const t = Number(n.total) || 99;
-      if(!best.has(h) || t < best.get(h).t) best.set(h, {t, area:n.area});
+      const h = hotelName(n); if(!h || NOT_HOTELS.test(h) || covered.has(h) || others.has(h)) continue;
+      others.set(h, {name:h, at:[h], area:n.area});
     }
-    return [...best].sort((a,b)=>a[1].t-b[1].t || a[0].localeCompare(b[0])).map(([name,v])=>({name, area:v.area}));
+    return {
+      block: HOUSING,
+      others: [...others.values()].sort((a,b)=>a.name.localeCompare(b.name))
+    };
   }
-  const minsRange = list => {
-    const t = list.map(n=>Number(n.total)).filter(Number.isFinite);
-    if(!t.length) return "";
-    const lo = Math.min(...t), hi = Math.max(...t);
-    return lo===hi ? `${lo} min` : `${lo}–${hi} min`;
+  /* Rough lobby-to-restaurant walk estimates for "Near a hotel".
+     Each hotel sits on one street (the Strip or Paradise Rd) at its street address, on the east or west
+     side. Walk ≈ 4 min per 100 address numbers + crossing the street (Strip bridges ~5 min, Paradise
+     signal ~2) + the walk inside the destination hotel (+ half of it to get out of the origin hotel).
+     Estimates only: the Map button shows Google's walking route from the hotel. */
+  const HOTEL_GEO = {
+    "Caesars Palace":{st:"strip", addr:3570, side:"W", inner:8, q:"Caesars Palace, 3570 S Las Vegas Blvd, Las Vegas, NV"},
+    "Courtyard LVCC":{st:"paradise", addr:3275, side:"W", inner:2, q:"Courtyard by Marriott Las Vegas Convention Center, 3275 Paradise Rd, Las Vegas, NV"},
+    "Embassy Suites Convention Center":{st:"paradise", addr:3600, side:"E", inner:2, q:"Embassy Suites Convention Center, 3600 Paradise Rd, Las Vegas, NV"},
+    "Flamingo":{st:"strip", addr:3555, side:"E", inner:4, q:"Flamingo Las Vegas, 3555 S Las Vegas Blvd, Las Vegas, NV"},
+    "Fontainebleau":{st:"strip", addr:2777, side:"E", inner:5, q:"Fontainebleau Las Vegas, 2777 S Las Vegas Blvd, Las Vegas, NV"},
+    "Harrah's":{st:"strip", addr:3475, side:"E", inner:4, q:"Harrah's Las Vegas, 3475 S Las Vegas Blvd, Las Vegas, NV"},
+    "Horseshoe Las Vegas":{st:"strip", addr:3645, side:"E", inner:4, q:"Horseshoe Las Vegas, 3645 S Las Vegas Blvd, Las Vegas, NV"},
+    "Las Vegas Marriott":{st:"paradise", addr:3300, side:"W", inner:2, q:"Las Vegas Marriott, 325 Convention Center Dr, Las Vegas, NV"},
+    "Mardi Gras Hotel":{st:"paradise", addr:3500, side:"E", inner:2, q:"Mardi Gras Hotel & Casino, 3500 Paradise Rd, Las Vegas, NV"},
+    "MGM Grand":{st:"strip", addr:3799, side:"E", inner:7, q:"MGM Grand, 3799 S Las Vegas Blvd, Las Vegas, NV"},
+    "Paris Las Vegas":{st:"strip", addr:3655, side:"E", inner:5, q:"Paris Las Vegas, 3655 S Las Vegas Blvd, Las Vegas, NV"},
+    "Renaissance Las Vegas":{st:"paradise", addr:3400, side:"E", inner:2, q:"Renaissance Las Vegas Hotel, 3400 Paradise Rd, Las Vegas, NV"},
+    "Residence Inn LVCC":{st:"paradise", addr:3225, side:"W", inner:2, q:"Residence Inn Las Vegas Convention Center, 3225 Paradise Rd, Las Vegas, NV"},
+    "Resorts World":{st:"strip", addr:3000, side:"W", inner:5, q:"Resorts World Las Vegas, 3000 S Las Vegas Blvd, Las Vegas, NV"},
+    "SAHARA":{st:"strip", addr:2535, side:"E", inner:4, q:"SAHARA Las Vegas, 2535 S Las Vegas Blvd, Las Vegas, NV"},
+    "SpringHill Suites LVCC":{st:"paradise", addr:2989, side:"W", inner:2, q:"SpringHill Suites Las Vegas Convention Center, 2989 Paradise Rd, Las Vegas, NV"},
+    "The LINQ":{st:"strip", addr:3535, side:"E", inner:4, q:"The LINQ Hotel, 3535 S Las Vegas Blvd, Las Vegas, NV"},
+    "The Vanderpump Hotel":{st:"strip", addr:3595, side:"E", inner:3, q:"The Vanderpump Hotel, 3595 S Las Vegas Blvd, Las Vegas, NV"},
+    "Treasure Island":{st:"strip", addr:3300, side:"W", inner:4, q:"Treasure Island, 3300 S Las Vegas Blvd, Las Vegas, NV"},
+    "Westgate":{st:"paradise", addr:3000, side:"E", inner:4, q:"Westgate Las Vegas, 3000 Paradise Rd, Las Vegas, NV"},
+    "Wynn / Encore":{st:"strip", addr:3131, side:"E", inner:6, q:"Wynn Las Vegas, 3131 S Las Vegas Blvd, Las Vegas, NV"}
   };
+  const geoOf = name => HOTEL_GEO[name] || HOTEL_GEO[String(name).replace(/ \(.*\)$/, "")] || null;
+  /* Extra walk for places deeper inside their hotel than its nearest restaurant (e.g. Battista's behind the LINQ) */
+  function deeper(n){
+    const h = hotelName(n);
+    const ins = state.nearby.filter(x=>hotelName(x)===h).map(x=>Number(x.insideMin)).filter(Number.isFinite);
+    return ins.length && Number.isFinite(Number(n.insideMin)) ? Math.max(0, Number(n.insideMin) - Math.min(...ins)) : 0;
+  }
+  /* Estimated walk in minutes from a hotel's lobby to restaurant n, or null if we can't say */
+  function walkFrom(hotel, n){
+    const o = geoOf(hotel.name), d = geoOf(hotelName(n));
+    if(!o || !d || o.st !== d.st) return null;
+    const same = hotel.at.includes(hotelName(n));
+    const street = same ? 0 : Math.abs(o.addr - d.addr) * 0.04 + (o.side !== d.side ? (o.st==="strip" ? 5 : 2) : 0) + o.inner / 2;
+    return Math.max(2, Math.round(street + d.inner + deeper(n)));
+  }
   const bkRank = {"Reservable":0,"Unconfirmed":1,"Walk-in":2,"Grab-and-go":3};
   const closest = (a,b)=>(Number(a.total)||99)-(Number(b.total)||99) || (bkRank[a.booking]??4)-(bkRank[b.booking]??4) || String(a.name).localeCompare(String(b.name));
-  const section = (title, sub, list, mode) =>
-    `<section class="hotel"><h3 class="hotelh">${esc(title)}${sub?` <span>· ${esc(sub)}</span>`:""}</h3><div class="near">${list.map(n=>nearCard(n, mode)).join("")}</div></section>`;
   function viewNearby(){
     const zone = state.zone==="hotel" ? "hotel" : "lvcc";
     const mode = MEALS.some(m=>m[0]===state.nearMode) ? state.nearMode : "Breakfast";
     const zones = ZONES.map(([k,label,sub])=>`<button type="button" class="zoneb" data-zone="${k}" aria-pressed="${zone===k}"><b>${label}</b><span>${sub}</span></button>`).join("");
     const seg = MEALS.map(([k])=>`<button class="segb" data-near="${k}" aria-pressed="${mode===k}">${k}</button>`).join("");
-    const hotels = state.nearLoaded ? hotelList() : [];
-    const hotel = hotels.find(h=>h.name===state.hotel) || null;
+    const hl = state.nearLoaded ? hotelList() : {block:[], others:[]};
+    const hotel = [...hl.block, ...hl.others].find(h=>h.name===state.hotel) || null;
+    const opt = h => `<option${hotel && hotel.name===h.name?" selected":""}>${esc(h.name)}</option>`;
     const picker = zone==="hotel"
-      ? `<label class="hotelpick"><span>Customer’s hotel</span><select id="fl_hotel"><option value="">Choose a hotel…</option>${hotels.map(h=>`<option${hotel && hotel.name===h.name?" selected":""}>${esc(h.name)}</option>`).join("")}</select></label>`
+      ? `<label class="hotelpick"><span>Customer’s hotel</span><select id="fl_hotel"><option value="">Choose a hotel…</option>`
+        + `<optgroup label="RE+ hotels">${hl.block.map(opt).join("")}</optgroup>`
+        + (hl.others.length ? `<optgroup label="Other hotels">${hl.others.map(opt).join("")}</optgroup>` : "")
+        + `</select></label>`
       : "";
     let html = `<div class="zones" role="group" aria-label="Where">${zones}</div>${picker}`
       + `<div class="nearbar"><div class="seg" role="group" aria-label="Meal">${seg}</div>`
@@ -282,15 +351,24 @@
     } else {
       if(!hotel) return html + `<div class="empty"><strong>Pick your customer’s hotel</strong> to see ${esc(mode.toLowerCase())} spots in it or next door.</div>`;
       const ar = state.areas.find(a=>a.id===hotel.area);
-      const at = forMeal.filter(n=>hotelName(n)===hotel.name).sort(closest);
-      const near = forMeal.filter(n=>n.area===hotel.area && hotelName(n)!==hotel.name).sort(closest);
-      const meta = [MONORAIL[hotel.area] || "", ar && ar.f1Risk ? "F1 zone Thu" : ""].filter(Boolean).join(" · ");
+      const w = n => walkFrom(hotel, n);
+      const byWalk = (a,b)=>(w(a)??99)-(w(b)??99) || closest(a,b);
+      const at = forMeal.filter(n=>hotel.at.includes(hotelName(n))).sort(byWalk);
+      const near = (hotel.near
+        ? forMeal.filter(n=>hotel.near.includes(hotelName(n)))
+        : forMeal.filter(n=>n.area===hotel.area && !hotel.at.includes(hotelName(n)))).sort(byWalk);
+      const walks = list => { const t = list.map(w).filter(v=>v!=null); if(!t.length) return ""; const lo=Math.min(...t), hi=Math.max(...t); return (lo===hi?`≈${lo}`:`≈${lo}–${hi}`) + " min walk"; };
+      const card = n => nearCard(n, mode, {mins: w(n), from: hotel.name});
+      const sec = (title, list) => `<section class="hotel"><h3 class="hotelh">${esc(title)}${walks(list)?` <span>· ${esc(walks(list))}</span>`:""}</h3><div class="near">${list.map(card).join("")}</div></section>`;
+      const meta = [hotel.note || "", MONORAIL[hotel.area] || "", ar && ar.f1Risk ? "F1 zone Thu" : ""].filter(Boolean).join(" · ");
       if(meta) html += `<p class="hotelmeta">${esc(meta)}</p>`;
       if(!at.length && !near.length) return html + `<div class="empty">No ${esc(mode.toLowerCase())} spots at or near ${esc(hotel.name)} yet. Try another meal.</div>`;
-      if(at.length) html += section(`At ${hotel.name}`, minsRange(at), at, mode);
-      if(near.length) html += section("Next door", minsRange(near), near, mode);
+      if(at.length) html += sec(`At ${hotel.name}`, at);
+      if(near.length) html += sec(at.length ? "Next door" : "Nearby", near);
     }
-    html += `<p class="note">Minutes are ${unit}. Hours and booking policies are estimates (October 2026); call to confirm.</p>`;
+    html += zone==="hotel"
+      ? `<p class="note">Walk times are estimates from the hotel lobby; tap Map for Google’s walking route. Hours and booking policies are from October 2026 listings; call to confirm.</p>`
+      : `<p class="note">Minutes are ${unit}. Hours and booking policies are estimates (October 2026); call to confirm.</p>`;
     return html;
   }
 
@@ -304,21 +382,28 @@
     linq: { label:"The LINQ", q:"The LINQ Hotel, 3535 S Las Vegas Blvd, Las Vegas, NV 89109" }
   };
   const WALK_AREAS = new Set(["lvcc","paradise","westgate"]);
-  let mapPlace = null, mapFrom = "lvcc", mapMorning = false;
+  let mapPlace = null, mapFrom = "lvcc", mapMorning = false, mapHotel = null;
   function drawMap(){
     const n = mapPlace; if(!n) return;
     const place = [n.name, n.venue, "Las Vegas, NV"].filter(Boolean).join(", ");
     /* Daytime: Central Hall (or The LINQ) -> restaurant. Breakfast: restaurant -> Central Hall, or The LINQ -> restaurant. */
-    const [from, to] = mapMorning
+    const hotelQ = mapHotel ? ((geoOf(mapHotel.name) || {}).q || mapHotel.name + ", Las Vegas, NV") : "";
+    const [from, to] = mapFrom==="hotel" ? [hotelQ, place]
+      : mapMorning
       ? (mapFrom==="linq" ? [ORIGINS.linq.q, place] : [place, ORIGINS.lvcc.q])
       : [ORIGINS[mapFrom].q, place];
-    const walk = mapFrom==="linq" ? n.area==="linq" : WALK_AREAS.has(n.area);
+    const walk = mapFrom==="hotel" ? true : mapFrom==="linq" ? n.area==="linq" : WALK_AREAS.has(n.area);
     $("#mapFrame").src = state.mapsKey
       ? "https://www.google.com/maps/embed/v1/directions?" + new URLSearchParams({key:state.mapsKey, origin:from, destination:to, mode: walk?"walking":"transit"})
       : "https://maps.google.com/maps?" + new URLSearchParams({saddr:from, daddr:to, ...(walk?{dirflg:"w"}:{}), output:"embed"});
     $("#mapOpen").href = "https://www.google.com/maps/dir/?" + new URLSearchParams({api:"1", origin:from, destination:to, travelmode: walk?"walking":"transit"});
     document.querySelectorAll("#mapDlg [data-from]").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.from===mapFrom)));
     const ar = state.areas.find(x=>x.id===n.area);
+    if(mapFrom==="hotel"){
+      const m = walkFrom(mapHotel, n);
+      $("#mapNote").textContent = `Walking route from ${mapHotel.name}.` + (m!=null ? ` Our estimate was about ${m} min; Google’s time above is the one to trust.` : "");
+      return;
+    }
     $("#mapNote").textContent = mapMorning
       ? (mapFrom==="linq"
           ? `From the team hotel to breakfast; then ${n.total ? n.total+" min" : "a short trip"} on to Central Hall.` + (ar && ar.getThere && ar.getThere!=="Already there" ? " " + ar.getThere : "")
@@ -327,13 +412,18 @@
       : ar && ar.getThere && ar.getThere!=="Already there" ? ar.getThere : "";
   }
   function openMap(n){
-    mapPlace = n; mapFrom = "lvcc";
-    mapMorning = state.tab==="nearby" && state.nearMode==="Breakfast";
+    /* From "Near a hotel", start at the customer's hotel */
+    mapHotel = state.tab==="nearby" && state.zone==="hotel" ? (HOUSING.find(h=>h.name===state.hotel) || (state.hotel ? {name:state.hotel, at:[state.hotel]} : null)) : null;
+    mapPlace = n; mapFrom = mapHotel ? "hotel" : "lvcc";
+    mapMorning = !mapHotel && state.tab==="nearby" && state.nearMode==="Breakfast";
+    const hb = $("#mapDlg [data-from=hotel]");
+    hb.hidden = !mapHotel; if(mapHotel) hb.textContent = mapHotel.name;
     $("#mapRouteLabel").textContent = mapMorning ? "Morning route" : "Route from";
     $("#mapDlg [data-from=lvcc]").textContent = mapMorning ? "To Central Hall" : "Central Hall";
     $("#mapDlg [data-from=linq]").textContent = mapMorning ? "From The LINQ" : "The LINQ";
     $("#mapTitle").textContent = n.name;
-    $("#mapSub").textContent = [n.total ? n.total + (mapMorning ? " min to Central Hall" : " min from your booth") : "", n.venue].filter(Boolean).join(" · ");
+    const wm = mapHotel ? walkFrom(mapHotel, n) : null;
+    $("#mapSub").textContent = [mapHotel ? (wm!=null ? `≈${wm} min walk from ${mapHotel.name}` : "") : n.total ? n.total + (mapMorning ? " min to Central Hall" : " min from your booth") : "", n.venue].filter(Boolean).join(" · ");
     drawMap();
     const dlg = $("#mapDlg");
     if(typeof dlg.showModal === "function") dlg.showModal(); else window.open($("#mapOpen").href, "_blank", "noopener");
