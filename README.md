@@ -1,6 +1,6 @@
 # RE+ 2026 Dining Holds — IT deployment guide
 
-A small internal web app the Executive Office uses to track restaurant holds and reservations for the Terabase team at RE+ 2026 (Las Vegas, Nov 16–19). It also lists recommended restaurants near LVCC Central Hall, grouped by area.
+A small internal web app the Executive Office uses to track restaurant holds and reservations for the Terabase team at RE+ 2026 (Las Vegas, Nov 16–19). It also lists recommended restaurants two ways: **Near LVCC** (closest to the booth) and **Near a hotel** (meet a customer at or next to their hotel).
 
 - **Requested by:** Linda Ramos (Executive Office)
 - **Users:** about 10–40 Terabase staff. **A few editors** (Linda, plus anyone else invited, e.g. Ian); everyone else views only.
@@ -132,6 +132,8 @@ TABLES_CONNECTION_STRING="<connection string from the SWA app settings>" node sc
 # Loaded 57 nearby
 ```
 
+**Later data updates (no Azure access needed):** after new restaurants are merged into `seed/` and deployed, editors see a "＋ N new places ready" button at the top of the app. Tapping it adds only the missing places. Rows already in the table are never changed, and places removed in the app aren't offered again. It's backed by `api/src/functions/updates.js`, and the deploy workflow copies `seed/` into the API.
+
 The script is safe to re-run. By default it only adds rows that aren't in the table yet, so restaurants edited in the app are kept. `--overwrite` replaces existing rows with the seed files (used for restores). It never touches `reservations` unless a `seed/reservations.json` file exists.
 
 ### 6. Give editors the editor role
@@ -184,7 +186,7 @@ The key is a browser key: it is served to signed-in users by `GET /api/config` a
 - [ ] A regular user sees "View only", with no Add/Edit/Delete buttons.
 - [ ] A regular user calling `PUT /api/data/reservations/test` (for example from browser dev tools) gets **403**.
 - [ ] An editor sees "You can edit", adds a test hold, changes its status and deletes it.
-- [ ] The **Places** tab lists the restaurants closest-first with **Book / Call / Map** buttons; **Walkable** narrows to 20 minutes or less; **Map** (or tapping a name) opens a map with the route from Central Hall or The LINQ.
+- [ ] The **Places** tab has two buttons. **Near LVCC** lists the closest places first. **Near a hotel** has you pick the customer's hotel, then shows places *At* that hotel and *Next door*. Each card has **Book / Call / Map** buttons, and **Map** (or tapping a name) opens a map with the route from Central Hall or The LINQ.
 - [ ] **+ Add booking**: picking a restaurant fills in its area and walk time; pick a day, time, party size and save. The **Bookings** tab shows it, and "Just mine" filters to bookings you host.
 - [ ] An editor adds a test restaurant with **+ Add restaurant**, edits it, then removes it.
 - [ ] Export CSV downloads a file.

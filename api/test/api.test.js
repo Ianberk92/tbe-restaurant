@@ -20,6 +20,13 @@ const fakeStore = {
     mem.set(k, rest); tags.set(k, `W/"${++version}"`);
     return { id, ...rest, etag: tags.get(k) };
   },
+  async insert(c, id, body) {
+    const k = `${c}/${id}`;
+    if (mem.has(k)) return false;
+    const { id: _x, etag: _e, ...rest } = body;
+    mem.set(k, rest); tags.set(k, `W/"${++version}"`);
+    return true;
+  },
   async remove(c, id, { etag } = {}) {
     const k = `${c}/${id}`;
     if (etag && mem.has(k) && tags.get(k) !== etag) throw conflict(412);
@@ -158,4 +165,38 @@ test('config returns the Maps embed key only to signed-in users, and only if wel
   delete process.env.GOOGLE_MAPS_EMBED_KEY;
   r = await config(req('GET', {}, { roles: [] }));
   assert.equal(r.jsonBody.mapsEmbedKey, '');
+});
+
+test('editors load new places from seed/ once; existing and removed places are left alone', async () => {
+  const { handler: updates } = require('../src/functions/updates');
+  const seedNearby = require('../../seed/nearby.json');
+  const seedAreas = require('../../seed/areas.json');
+  const call = (method, roles) => updates({ ...req(method, {}, { roles }), params: {} }, ctx);
+  for (const k of [...mem.keys()]) mem.delete(k);
+  // Live table already has one area and one place, edited in the app.
+  mem.set(`areas/${seedAreas[0].id}`, { name: 'kept' });
+  mem.set(`nearby/${seedNearby[0].id}`, { name: 'Edited in app', fit: ['Dinner'] });
+
+  assert.equal((await call('GET', null)).status, 401);
+  assert.equal((await call('GET', [])).jsonBody.pending, 0, 'viewers are never offered updates');
+  assert.equal((await call('POST', [])).status, 403);
+
+  const before = (await call('GET', ['editor'])).jsonBody;
+  assert.equal(before.pending, seedNearby.length - 1);
+  assert.equal(before.areas, seedAreas.length - 1);
+  assert.ok(before.names.length > 0 && before.names.length <= 8);
+
+  const r = await call('POST', ['editor']);
+  assert.equal(r.status, 200);
+  assert.equal(r.jsonBody.added, seedNearby.length - 1 + seedAreas.length - 1);
+  assert.equal(r.jsonBody.places, seedNearby.length - 1);
+  assert.equal(mem.get(`nearby/${seedNearby[0].id}`).name, 'Edited in app', 'existing rows are not overwritten');
+  assert.equal(mem.get(`areas/${seedAreas[0].id}`).name, 'kept');
+  assert.equal((await call('GET', ['editor'])).jsonBody.pending, 0);
+
+  // A place removed in the app stays removed on the next update.
+  mem.delete(`nearby/${seedNearby[1].id}`);
+  assert.equal((await call('GET', ['editor'])).jsonBody.pending, 0);
+  assert.equal((await call('POST', ['editor'])).jsonBody.added, 0);
+  assert.ok(!mem.has(`nearby/${seedNearby[1].id}`));
 });
