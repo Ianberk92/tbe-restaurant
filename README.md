@@ -71,6 +71,7 @@ api/
   host.json, package.json, package-lock.json, local.settings.sample.json
 infra/main.bicep             Azure resources
 scripts/seed.js              loads seed/*.json into the table (adds missing rows; --overwrite replaces)
+scripts/load.sh              one-step load from Azure Cloud Shell (clone, install, read conn string, seed)
 scripts/export.js            backs up all collections to JSON
 seed/areas.json, seed/nearby.json   reference data
 .github/workflows/deploy.yml CI/CD
