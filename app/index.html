@@ -123,6 +123,10 @@ textarea{min-height:60px;resize:vertical}
 .sumline:empty{display:none}
 .sumline .attn{display:inline-flex;gap:8px;align-items:center;font:600 14px var(--f-body);color:var(--bad);background:var(--bad-bg);border:0;border-left:3px solid var(--bad-dot);border-radius:6px;padding:8px 12px;cursor:pointer}
 .sumline .attn:hover{text-decoration:underline}
+.sumline{display:flex;flex-wrap:wrap;gap:8px}
+.sumline .upd{display:inline-flex;align-items:center;font:600 14px var(--f-body);color:var(--info);background:var(--info-bg);border:0;border-left:3px solid var(--info-dot);border-radius:6px;padding:8px 12px;text-align:left}
+.sumline button.upd{cursor:pointer}
+.sumline button.upd:hover{text-decoration:underline}
 .nearbar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-bottom:10px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .segb{border:0;background:var(--surface);color:var(--muted);font:600 14px var(--f-body);padding:7px 14px;cursor:pointer}
@@ -187,7 +191,7 @@ details.moreform>.grid{margin-top:12px}
   .toggle input,fieldset.checks input{width:20px;height:20px}
   details.more>summary,details.moreform>summary{padding:10px 0}
   .rname.link{padding:4px 0}
-  .sumline .attn{min-height:44px}
+  .sumline .attn,.sumline .upd{min-height:44px}
   select,input:not([type=checkbox]){min-height:44px}
   a.btn{display:inline-flex;align-items:center}
 }

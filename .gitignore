@@ -2,3 +2,4 @@ node_modules/
 api/local.settings.json
 .env
 *.log
+api/seed/

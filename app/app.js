@@ -100,9 +100,13 @@
   /* One line, only when bookings need a decision (deadlines, host conflicts, F1 race day, no confirmation #) */
   function renderSummary(){
     const attn = state.loaded ? state.res.filter(r=>flagsFor(r).length).length : 0;
-    $("#summary").innerHTML = attn
+    const up = state.updates;   /* editors only: new places shipped with the app but not yet in the live list */
+    const upHtml = !up ? "" : up.busy ? `<span class="upd">Adding new places…</span>`
+      : up.msg ? `<span class="upd">${esc(up.msg)}</span>`
+      : up.pending ? `<button type="button" class="upd" data-act="load-updates" title="${esc(up.names.join(", "))}${up.pending>up.names.length?", …":""}">＋ ${up.pending} new place${up.pending===1?"":"s"} ready: add them to the list</button>` : "";
+    $("#summary").innerHTML = (attn
       ? `<button type="button" class="attn" data-goto="bookings">${attn} booking${attn===1?"":"s"} need${attn===1?"s":""} attention →</button>`
-      : "";
+      : "") + upHtml;
   }
 
   function statusControl(r){
@@ -469,7 +473,19 @@
   });
 
   /* ---------- Events ---------- */
-  $("#summary").addEventListener("click", e=>{ if(!e.target.closest("[data-goto]")) return; state.tab="bookings"; remember("tab", state.tab); state.showOff=false; state.mine=false; render(); $("#view").scrollIntoView({block:"start"}); });
+  $("#summary").addEventListener("click", async e=>{
+    if(e.target.closest("[data-act=load-updates]")){
+      state.updates = {...state.updates, busy:true}; renderSummary();
+      try{
+        const r = await fetch("/api/updates", {method:"POST", credentials:"same-origin", cache:"no-store"});
+        if(!r.ok) throw new Error("HTTP "+r.status);
+        const {places} = await r.json();
+        state.updates = {pending:0, names:[], msg:`Added ${places} new place${places===1?"":"s"}.`};
+      }catch(_){ state.updates = {...state.updates, busy:false, msg:"Couldn’t add the new places. Try again shortly."}; }
+      await loadAll(); renderSummary();
+      return;
+    }
+    if(!e.target.closest("[data-goto]")) return; state.tab="bookings"; remember("tab", state.tab); state.showOff=false; state.mine=false; render(); $("#view").scrollIntoView({block:"start"}); });
   $("#tabs").addEventListener("click", e=>{ const b=e.target.closest(".tab"); if(!b) return; state.tab=b.dataset.tab; remember("tab", state.tab); state.confirmDel=null; render(); });
   $("#view").addEventListener("change", async e=>{
     const t = e.target;
@@ -594,6 +610,7 @@
     $("#addBtn").hidden = !state.isOwner;
     $("#exportBtn").hidden = false;
     await loadAll();
+    if(state.isOwner){ try{ const u = await apiCallRaw("/api/updates"); if(u && u.pending){ state.updates = {pending:u.pending, names:u.names||[]}; renderSummary(); } }catch(_){} }
     try{ const c = await apiCallRaw("/api/config"); state.mapsKey = (c && c.mapsEmbedKey) || ""; }catch(_){}   /* optional: keyless map if missing */
     setInterval(loadAll, 30000);           /* pick up changes made on other devices */
     setInterval(()=>{ if(state.loaded && $("#formPanel").hidden && $("#nearPanel").hidden) render(); }, 10*60*1000);

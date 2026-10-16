@@ -74,6 +74,19 @@ async function put(collection, id, body, user, { etag } = {}) {
   return { id, ...clean, etag: result && result.etag };
 }
 
+/** Adds a document only if its id is new. Returns false if it already exists. */
+async function insert(collection, id, body, user) {
+  await ensureTable();
+  const { id: _ignored, etag: _oldEtag, ...clean } = body || {};
+  try {
+    await getClient().createEntity({ partitionKey: collection, rowKey: id, json: JSON.stringify(clean), updatedBy: user });
+    return true;
+  } catch (e) {
+    if (e.statusCode === 409) return false;
+    throw e;
+  }
+}
+
 async function remove(collection, id, { etag } = {}) {
   await ensureTable();
   try {
@@ -83,4 +96,4 @@ async function remove(collection, id, { etag } = {}) {
   }
 }
 
-module.exports = { list, get, put, remove, ensureTable, getClient };
+module.exports = { list, get, put, insert, remove, ensureTable, getClient };

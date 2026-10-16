@@ -132,6 +132,8 @@ TABLES_CONNECTION_STRING="<connection string from the SWA app settings>" node sc
 # Loaded 57 nearby
 ```
 
+**Later data updates (no Azure access needed):** after new restaurants are merged into `seed/` and deployed, editors see a "＋ N new places ready" button at the top of the app. Tapping it adds only the missing places. Rows already in the table are never changed, and places removed in the app aren't offered again. It's backed by `api/src/functions/updates.js`, and the deploy workflow copies `seed/` into the API.
+
 The script is safe to re-run. By default it only adds rows that aren't in the table yet, so restaurants edited in the app are kept. `--overwrite` replaces existing rows with the seed files (used for restores). It never touches `reservations` unless a `seed/reservations.json` file exists.
 
 ### 6. Give editors the editor role

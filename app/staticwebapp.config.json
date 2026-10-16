@@ -64,6 +64,15 @@
       ]
     },
     {
+      "route": "/api/updates",
+      "methods": [
+        "POST"
+      ],
+      "allowedRoles": [
+        "editor"
+      ]
+    },
+    {
       "route": "/api/*",
       "allowedRoles": [
         "authenticated"
