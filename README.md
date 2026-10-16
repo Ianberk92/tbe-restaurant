@@ -48,7 +48,7 @@ A small internal web app the Executive Office uses to track restaurant holds and
 | Collection | What it holds | Who writes |
 |---|---|---|
 | `reservations` | Holds and bookings: date, time, restaurant, host, party size, attendees, confirmation #, cancel-by deadline, notes | Editor, through the app |
-| `nearby` | Restaurant list (31 places to start) with booking type, hours, phone and walk-time estimates | Editors, through the app (Add restaurant / Edit); initial load by seed script |
+| `nearby` | Restaurant list (57 places to start) with booking type, hours, phone and walk-time estimates | Editors, through the app (Add restaurant / Edit); initial load by seed script |
 | `areas` | 5 neighborhood descriptions (Paradise Rd, Westgate, North Strip, The LINQ, LVCC) | IT/seed script only |
 
 **Data classification:** Internal. Reservations contain staff and guest names, guest company names and the editor's sign-in email (audit field `updatedBy`). There is **no payment-card or financial-account data**; the form has no field for it. Please remind editors not to type card numbers into Notes.
@@ -127,8 +127,8 @@ swa deploy ./app --api-location ./api --api-language node --api-version 22 \
 ```bash
 cd api && npm ci && cd ..
 TABLES_CONNECTION_STRING="<connection string from the SWA app settings>" node scripts/seed.js
-# Loaded 5 areas
-# Loaded 31 nearby
+# Loaded 9 areas
+# Loaded 57 nearby
 ```
 
 The script is safe to re-run. By default it only adds rows that aren't in the table yet, so restaurants edited in the app are kept. `--overwrite` replaces existing rows with the seed files (used for restores). It never touches `reservations` unless a `seed/reservations.json` file exists.
