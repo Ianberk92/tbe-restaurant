@@ -238,7 +238,7 @@
   const MONORAIL = {sahara:"2 Monorail stops north", linq:"1 Monorail stop south", flamingo:"2 Monorail stops south", paris:"3 Monorail stops south", mgm:"4 Monorail stops south"};
   const NEAR_LVCC = new Set(["lvcc","paradise","westgate","northstrip"]);   /* walk or Vegas Loop from Central Hall */
   const NOT_HOTELS = /^(LVCC|Peppermill)\b/;   /* venues listed in the hotel field that aren't hotels */
-  const ZONES = [["lvcc","Near LVCC","What’s closest to the booth"],["hotel","Near a hotel","Meet at your customer’s hotel"]];
+  const ZONES = [["lvcc","Near LVCC","What’s closest to the booth"],["hotel","Near a hotel","Dine near your customer’s hotel"]];
   /* "MGM Grand (inside Luchini)" -> "MGM Grand"; "The LINQ and Promenade" -> "The LINQ" */
   const hotelName = n => String(n.hotel || "").replace(/\s*\(.*\)\s*$/, "").replace(/ and Promenade$/, "").trim();
   /* RE+ 2026 housing block (list from the RE+ housing page, Oct 2026), mapped to the places we list.
