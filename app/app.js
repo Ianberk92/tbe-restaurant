@@ -239,14 +239,42 @@
   const ZONES = [["lvcc","Near LVCC","What’s closest to the booth"],["hotel","Near a hotel","Meet at your customer’s hotel"]];
   /* "MGM Grand (inside Luchini)" -> "MGM Grand"; "The LINQ and Promenade" -> "The LINQ" */
   const hotelName = n => String(n.hotel || "").replace(/\s*\(.*\)\s*$/, "").replace(/ and Promenade$/, "").trim();
+  /* RE+ 2026 housing block (list from the RE+ housing page, Oct 2026), mapped to the places we list.
+     at:   hotel names (as in the restaurant data) that count as "at" this hotel
+     area: where its "Next door" places come from (all places in that area that aren't "at")
+     near: instead of the area, exactly these hotels' places (for hotels with nothing of their own)
+     note: one line shown under the picker */
+  const HOUSING = [
+    {name:"Caesars Palace", at:["Caesars Palace"], area:"flamingo"},
+    {name:"Courtyard LVCC", at:["Courtyard LVCC"], area:"paradise"},
+    {name:"Embassy Suites Convention Center", at:["Embassy Suites Convention Center"], area:"paradise"},
+    {name:"Harrah's", at:[], area:"linq", near:["The LINQ","Flamingo"], note:"Next door to The LINQ Promenade."},
+    {name:"Hilton Grand Vacations on the Strip", at:[], area:"", near:["SAHARA","Fontainebleau"], note:"Nearest places we list. Check the walk on the map."},
+    {name:"Hilton Grand Vacations Paradise", at:[], area:"paradise", note:"Nearest places we list. Check the walk on the map."},
+    {name:"Las Vegas Marriott", at:["Las Vegas Marriott"], area:"paradise"},
+    {name:"MGM Grand", at:["MGM Grand"], area:"mgm"},
+    {name:"Renaissance Las Vegas", at:["Renaissance Las Vegas"], area:"paradise"},
+    {name:"Residence Inn LVCC", at:[], area:"paradise", note:"Next to Courtyard LVCC on Paradise Rd."},
+    {name:"Resorts World (Conrad, Hilton, Crockfords)", at:["Resorts World"], area:"northstrip"},
+    {name:"SAHARA", at:["SAHARA"], area:"sahara"},
+    {name:"SpringHill Suites LVCC", at:[], area:"paradise", note:"On Paradise Rd by the convention center."},
+    {name:"The LINQ", at:["The LINQ"], area:"linq", near:["Flamingo"], note:"Terabase team hotel."},
+    {name:"Treasure Island", at:[], area:"", near:["Wynn / Encore"], note:"Nothing listed at TI yet. Closest: Wynn / Encore, about a 10–15 min walk."},
+    {name:"Westgate", at:["Westgate"], area:"westgate"},
+    {name:"Wynn / Encore", at:["Wynn / Encore"], area:"northstrip"}
+  ];
+  /* RE+ hotels first, then any other hotel we have places for (customers outside the block) */
   function hotelList(){
-    const best = new Map();   /* hotel -> closest minutes to Central Hall, for ordering */
+    const covered = new Set(HOUSING.flatMap(h=>h.at));
+    const others = new Map();
     for(const n of state.nearby){
-      const h = hotelName(n); if(!h || NOT_HOTELS.test(h)) continue;
-      const t = Number(n.total) || 99;
-      if(!best.has(h) || t < best.get(h).t) best.set(h, {t, area:n.area});
+      const h = hotelName(n); if(!h || NOT_HOTELS.test(h) || covered.has(h) || others.has(h)) continue;
+      others.set(h, {name:h, at:[h], area:n.area});
     }
-    return [...best].sort((a,b)=>a[1].t-b[1].t || a[0].localeCompare(b[0])).map(([name,v])=>({name, area:v.area}));
+    return {
+      block: HOUSING,
+      others: [...others.values()].sort((a,b)=>a.name.localeCompare(b.name))
+    };
   }
   const minsRange = list => {
     const t = list.map(n=>Number(n.total)).filter(Number.isFinite);
@@ -263,10 +291,14 @@
     const mode = MEALS.some(m=>m[0]===state.nearMode) ? state.nearMode : "Breakfast";
     const zones = ZONES.map(([k,label,sub])=>`<button type="button" class="zoneb" data-zone="${k}" aria-pressed="${zone===k}"><b>${label}</b><span>${sub}</span></button>`).join("");
     const seg = MEALS.map(([k])=>`<button class="segb" data-near="${k}" aria-pressed="${mode===k}">${k}</button>`).join("");
-    const hotels = state.nearLoaded ? hotelList() : [];
-    const hotel = hotels.find(h=>h.name===state.hotel) || null;
+    const hl = state.nearLoaded ? hotelList() : {block:[], others:[]};
+    const hotel = [...hl.block, ...hl.others].find(h=>h.name===state.hotel) || null;
+    const opt = h => `<option${hotel && hotel.name===h.name?" selected":""}>${esc(h.name)}</option>`;
     const picker = zone==="hotel"
-      ? `<label class="hotelpick"><span>Customer’s hotel</span><select id="fl_hotel"><option value="">Choose a hotel…</option>${hotels.map(h=>`<option${hotel && hotel.name===h.name?" selected":""}>${esc(h.name)}</option>`).join("")}</select></label>`
+      ? `<label class="hotelpick"><span>Customer’s hotel</span><select id="fl_hotel"><option value="">Choose a hotel…</option>`
+        + `<optgroup label="RE+ hotels">${hl.block.map(opt).join("")}</optgroup>`
+        + (hl.others.length ? `<optgroup label="Other hotels">${hl.others.map(opt).join("")}</optgroup>` : "")
+        + `</select></label>`
       : "";
     let html = `<div class="zones" role="group" aria-label="Where">${zones}</div>${picker}`
       + `<div class="nearbar"><div class="seg" role="group" aria-label="Meal">${seg}</div>`
@@ -282,13 +314,15 @@
     } else {
       if(!hotel) return html + `<div class="empty"><strong>Pick your customer’s hotel</strong> to see ${esc(mode.toLowerCase())} spots in it or next door.</div>`;
       const ar = state.areas.find(a=>a.id===hotel.area);
-      const at = forMeal.filter(n=>hotelName(n)===hotel.name).sort(closest);
-      const near = forMeal.filter(n=>n.area===hotel.area && hotelName(n)!==hotel.name).sort(closest);
-      const meta = [MONORAIL[hotel.area] || "", ar && ar.f1Risk ? "F1 zone Thu" : ""].filter(Boolean).join(" · ");
+      const at = forMeal.filter(n=>hotel.at.includes(hotelName(n))).sort(closest);
+      const near = (hotel.near
+        ? forMeal.filter(n=>hotel.near.includes(hotelName(n)))
+        : forMeal.filter(n=>n.area===hotel.area && !hotel.at.includes(hotelName(n)))).sort(closest);
+      const meta = [hotel.note || "", MONORAIL[hotel.area] || "", ar && ar.f1Risk ? "F1 zone Thu" : ""].filter(Boolean).join(" · ");
       if(meta) html += `<p class="hotelmeta">${esc(meta)}</p>`;
       if(!at.length && !near.length) return html + `<div class="empty">No ${esc(mode.toLowerCase())} spots at or near ${esc(hotel.name)} yet. Try another meal.</div>`;
       if(at.length) html += section(`At ${hotel.name}`, minsRange(at), at, mode);
-      if(near.length) html += section("Next door", minsRange(near), near, mode);
+      if(near.length) html += section(at.length ? "Next door" : "Nearby", minsRange(near), near, mode);
     }
     html += `<p class="note">Minutes are ${unit}. Hours and booking policies are estimates (October 2026); call to confirm.</p>`;
     return html;
