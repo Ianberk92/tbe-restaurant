@@ -53,5 +53,49 @@
     "order": 2,
     "short": "Westgate",
     "whoStays": "Many show attendees; it is the closest full resort"
+  },
+  {
+    "id": "sahara",
+    "blurb": "The SAHARA sits at the north end of the Monorail, one stop past the Westgate and next door to the Fontainebleau. A good mid-to-upscale dinner cluster with private rooms; breakfast choices are thin.",
+    "f1": "Well north of the race circuit. Expect normal convention traffic.",
+    "f1Risk": false,
+    "getThere": "Monorail from LVCC (Boingo) to SAHARA: 2 stops, about 4 min, trains every 4–8 min, $6.25. A bridge over the Strip leads into SAHARA's second level. Allow about 25 min from the booth, 40 at show close.",
+    "name": "North end: SAHARA",
+    "order": 5,
+    "short": "SAHARA",
+    "whoStays": "Attendees wanting a newer, mid-priced resort near LVCC"
+  },
+  {
+    "id": "flamingo",
+    "blurb": "Large resorts around the Flamingo Rd and Strip corner, one stop past The LINQ. The Flamingo is closest to the station. Caesars Palace is across the Strip and a long walk inside. The Cromwell was renamed The Vanderpump Hotel in May 2026.",
+    "f1": "The Flamingo side is on the Strip section of the circuit. Expect closures and crowds from early afternoon Thu 11/19; Monorail runs 24 hours Nov 17–23. Book customer dinners Tue or Wed if you can.",
+    "f1Risk": true,
+    "getThere": "Monorail from LVCC to Flamingo/Caesars Palace: 2 stops, about 5 min, $6.25. The station is behind the Flamingo. Allow 5–10 min to Flamingo restaurants and 15–25 min to Caesars Palace restaurants after you get off.",
+    "name": "Center Strip: Flamingo, Caesars Palace and The Vanderpump Hotel",
+    "order": 6,
+    "short": "Flamingo/Caesars",
+    "whoStays": "Many customers and executives; Caesars Palace is a popular conference hotel"
+  },
+  {
+    "id": "paris",
+    "blurb": "Horseshoe (formerly Bally's) and Paris sit side by side on the Strip. Paris has the stronger restaurant lineup, including the Eiffel Tower Restaurant and Mon Ami Gabi. Horseshoe has no sit-down breakfast.",
+    "f1": "Inside the race circuit. Thu 11/19 will be busy and pricier (the Eiffel Tower Restaurant has a special race menu Nov 19–21). Prefer Tue or Wed.",
+    "f1Risk": true,
+    "getThere": "Monorail from LVCC to Horseshoe/Paris: 3 stops, about 7–10 min, $6.25. The station is at the back of Horseshoe; Paris is reached through an indoor connector, about 10–15 min.",
+    "name": "Center Strip: Horseshoe and Paris",
+    "order": 7,
+    "short": "Horseshoe/Paris",
+    "whoStays": "Customers who want a central Strip location"
+  },
+  {
+    "id": "mgm",
+    "blurb": "The MGM Grand is the south end of the Monorail and one of the largest hotels in the city, with a deep restaurant row. Good for larger hosted dinners with private rooms.",
+    "f1": "Just south of the circuit's Harmon Ave edge. Expect heavy traffic but no track closures at the hotel itself.",
+    "f1Risk": false,
+    "getThere": "Monorail from LVCC to MGM Grand: 4 stops, about 9–12 min, $6.25. The station is at the back of the property; allow about 10 min to the restaurant row.",
+    "name": "South end: MGM Grand",
+    "order": 8,
+    "short": "MGM Grand",
+    "whoStays": "Large-conference attendees and budget-conscious travelers"
   }
 ]
