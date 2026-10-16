@@ -4,14 +4,15 @@
   const DAYS = ["2026-11-16","2026-11-17","2026-11-18","2026-11-19"];
   const ACTIVE = new Set(["Hold","Confirmed"]);
   const state = { res: [], nearby: [], areas: [], loaded:false, nearLoaded:false, isOwner:false, db:null, downloads:null,
-    tab:"nearby", nearMode:"Breakfast", walkable:false, mapsKey:"", mine:false, showOff:false, todayOnly:false, me:null, editing:null, editingEtag:null, editingNear:null, nearDelArmed:false, confirmDel:null, err:"" };
+    tab:"nearby", nearMode:"Breakfast", zone:"lvcc", hotel:"", mapsKey:"", mine:false, showOff:false, todayOnly:false, me:null, editing:null, editingEtag:null, editingNear:null, nearDelArmed:false, confirmDel:null, err:"" };
 
   const $ = s => document.querySelector(s);
   const remember = (k, v) => { try{ localStorage.setItem("redine."+k, JSON.stringify(v)); }catch(_){} };
   const recall = (k, d) => { try{ const v = localStorage.getItem("redine."+k); return v==null ? d : JSON.parse(v); }catch(_){ return d; } };
   state.tab = recall("tab", "nearby") === "bookings" ? "bookings" : "nearby";
   state.mine = !!recall("mine", false);
-  state.walkable = !!recall("walkable", false);
+  state.zone = recall("zone", "lvcc") === "hotel" ? "hotel" : "lvcc";
+  state.hotel = String(recall("hotel", "") || "");
   /* Today's date in Las Vegas, so "today" is right wherever the viewer's laptop clock is set */
   const TODAY = (()=>{
     const q = new URLSearchParams(location.search).get("today");
@@ -213,7 +214,7 @@
         <div class="row1"><button type="button" class="rname link" data-act="map" data-id="${esc(n.id)}">${esc(n.name)}</button><span class="pill bk-${esc(n.booking)}">${esc(BADGE[n.booking]||n.booking||"")}</span></div>
         ${n.total?`<div class="big">${esc(n.total)}<small>${morning?"min to Central Hall":"min from booth"}</small></div>`:""}
         ${morning && n.hours?`<div class="hours"><span class="k">Hours</span>${esc(n.hours)}</div>`:""}
-        <div class="loc">${ar && morning?`<span class="areachip">${esc(ar.short||ar.name)}${ar.f1Risk?" · F1 zone":""}</span>`:""}${esc(n.venue||"")}</div>
+        <div class="loc">${esc(n.venue||"")}</div>
         ${n.watch?`<div class="watch">${esc(n.watch)}</div>`:""}
         <div class="acts">${acts.join("")}</div>
         ${extra?`<details class="more"><summary>Details</summary><div class="moreb">${extra}</div></details>`:""}
@@ -222,51 +223,74 @@
   }
 
   /* Places: one row of filters and a single list, closest to Central Hall first */
-  const WALKABLE_MIN = 20;
   const MEALS = [
     ["Breakfast",""],
     ["Lunch","Booth lunch is catered; these are for overflow or a quick team bite."],
     ["Dinner",""],
     ["Drinks","For casual customer drinks after the show floor closes."]
   ];
+  /* Two questions, two buttons:
+     "Near LVCC"    — what's closest to the booth right now (one list, closest first)
+     "Near a hotel" — meet a customer at or next to their hotel
+     Monorail stations (north to south) say how many stops each hotel is from LVCC. */
+  const MONORAIL = {sahara:"2 Monorail stops north", linq:"1 Monorail stop south", flamingo:"2 Monorail stops south", paris:"3 Monorail stops south", mgm:"4 Monorail stops south"};
+  const NEAR_LVCC = new Set(["lvcc","paradise","westgate","northstrip"]);   /* walk or Vegas Loop from Central Hall */
+  const NOT_HOTELS = /^(LVCC|Peppermill)\b/;   /* venues listed in the hotel field that aren't hotels */
+  const ZONES = [["lvcc","Near LVCC","What’s closest to the booth"],["hotel","Near a hotel","Meet at your customer’s hotel"]];
+  /* "MGM Grand (inside Luchini)" -> "MGM Grand"; "The LINQ and Promenade" -> "The LINQ" */
+  const hotelName = n => String(n.hotel || "").replace(/\s*\(.*\)\s*$/, "").replace(/ and Promenade$/, "").trim();
+  function hotelList(){
+    const best = new Map();   /* hotel -> closest minutes to Central Hall, for ordering */
+    for(const n of state.nearby){
+      const h = hotelName(n); if(!h || NOT_HOTELS.test(h)) continue;
+      const t = Number(n.total) || 99;
+      if(!best.has(h) || t < best.get(h).t) best.set(h, {t, area:n.area});
+    }
+    return [...best].sort((a,b)=>a[1].t-b[1].t || a[0].localeCompare(b[0])).map(([name,v])=>({name, area:v.area}));
+  }
+  const minsRange = list => {
+    const t = list.map(n=>Number(n.total)).filter(Number.isFinite);
+    if(!t.length) return "";
+    const lo = Math.min(...t), hi = Math.max(...t);
+    return lo===hi ? `${lo} min` : `${lo}–${hi} min`;
+  };
+  const bkRank = {"Reservable":0,"Unconfirmed":1,"Walk-in":2,"Grab-and-go":3};
+  const closest = (a,b)=>(Number(a.total)||99)-(Number(b.total)||99) || (bkRank[a.booking]??4)-(bkRank[b.booking]??4) || String(a.name).localeCompare(String(b.name));
+  const section = (title, sub, list, mode) =>
+    `<section class="hotel"><h3 class="hotelh">${esc(title)}${sub?` <span>· ${esc(sub)}</span>`:""}</h3><div class="near">${list.map(n=>nearCard(n, mode)).join("")}</div></section>`;
   function viewNearby(){
+    const zone = state.zone==="hotel" ? "hotel" : "lvcc";
     const mode = MEALS.some(m=>m[0]===state.nearMode) ? state.nearMode : "Breakfast";
+    const zones = ZONES.map(([k,label,sub])=>`<button type="button" class="zoneb" data-zone="${k}" aria-pressed="${zone===k}"><b>${label}</b><span>${sub}</span></button>`).join("");
     const seg = MEALS.map(([k])=>`<button class="segb" data-near="${k}" aria-pressed="${mode===k}">${k}</button>`).join("");
-    let html = `<div class="nearbar"><div class="seg" role="group" aria-label="Meal">${seg}</div>`
-      + `<label class="toggle"><input type="checkbox" id="fl_walk"${state.walkable?" checked":""}> Walkable (${WALKABLE_MIN} min or less)</label>`
+    const hotels = state.nearLoaded ? hotelList() : [];
+    const hotel = hotels.find(h=>h.name===state.hotel) || null;
+    const picker = zone==="hotel"
+      ? `<label class="hotelpick"><span>Customer’s hotel</span><select id="fl_hotel"><option value="">Choose a hotel…</option>${hotels.map(h=>`<option${hotel && hotel.name===h.name?" selected":""}>${esc(h.name)}</option>`).join("")}</select></label>`
+      : "";
+    let html = `<div class="zones" role="group" aria-label="Where">${zones}</div>${picker}`
+      + `<div class="nearbar"><div class="seg" role="group" aria-label="Meal">${seg}</div>`
       + (state.isOwner?`<button class="btn sm" data-act="addnear">+ Add restaurant</button>`:"") + `</div>`;
     if(!state.nearLoaded) return html + `<div class="empty"><strong>Loading restaurants…</strong></div>`;
-    const bk = {"Reservable":0,"Unconfirmed":1,"Walk-in":2,"Grab-and-go":3};
-    const items = state.nearby
-      .filter(n=>Array.isArray(n.fit) && n.fit.includes(mode) && (!state.walkable || (Number(n.total)||Infinity) <= WALKABLE_MIN))
-      .sort((a,b)=>(Number(a.total)||99)-(Number(b.total)||99) || (bk[a.booking]??4)-(bk[b.booking]??4) || String(a.name).localeCompare(String(b.name)));
-    const tip = MEALS.find(m=>m[0]===mode)[1];
-    html += mode==="Breakfast"
-      ? `<p class="lead">Breakfast on the way in: grouped by hotel, closest to the convention center first. Times are from the restaurant to Central Hall, so groups can meet there and walk over together.</p>`
-      : `<p class="lead">Grouped by area, closest to Central Hall first.${tip?" "+esc(tip):""}</p>`;
-    if(!items.length) return html + `<div class="empty">No ${esc(mode.toLowerCase())} spots within ${WALKABLE_MIN} minutes. Turn off “Walkable” to see more.</div>`;
-    if(mode==="Breakfast"){
-      const hotelOf = n => n.hotel || n.venue || "Other";
-      const hotels = [...new Set(items.map(hotelOf))];   /* items are already closest-first */
-      html += hotels.map(h=>{
-        const list = items.filter(n=>hotelOf(n)===h);
-        const mins = Math.min(...list.map(n=>Number(n.total)||Infinity));
-        return `<section class="hotel"><h3 class="hotelh">${esc(h)}${Number.isFinite(mins)?` <span>· ${mins} min to Central Hall</span>`:""}</h3><div class="near">${list.map(n=>nearCard(n, mode)).join("")}</div></section>`;
-      }).join("");
+    const forMeal = state.nearby.filter(n=>Array.isArray(n.fit) && n.fit.includes(mode));
+    const unit = mode==="Breakfast" ? "from the restaurant to Central Hall" : "from the booth to the table";
+
+    if(zone==="lvcc"){
+      const items = forMeal.filter(n=>NEAR_LVCC.has(n.area)).sort(closest);
+      if(!items.length) return html + `<div class="empty">No ${esc(mode.toLowerCase())} spots near LVCC yet.</div>`;
+      html += `<div class="near">${items.map(n=>nearCard(n, mode)).join("")}</div>`;
     } else {
-      /* Lunch, dinner, drinks: grouped by area, closest area to Central Hall first */
-      const areaOrder = id => { const a = state.areas.find(x=>x.id===id); return a ? (a.order||0) : 99; };
-      const ids = [...new Set(items.map(n=>n.area||""))].sort((a,b)=>areaOrder(a)-areaOrder(b));
-      html += ids.map(id=>{
-        const ar = state.areas.find(x=>x.id===id);
-        const list = items.filter(n=>(n.area||"")===id);
-        const t = list.map(n=>Number(n.total)).filter(Number.isFinite);
-        const range = t.length ? (Math.min(...t)===Math.max(...t) ? `${Math.min(...t)} min` : `${Math.min(...t)}–${Math.max(...t)} min`) : "";
-        const tip = ar && ar.getThere && ar.getThere!=="Already there" ? ar.getThere.split(/(?<=\.)\s/)[0] : "";
-        return `<section class="hotel"><h3 class="hotelh">${esc(ar ? ar.name : "Other")}${range?` <span>· ${range} from Central Hall</span>`:""}${ar && ar.f1Risk?` <span class="f1tag">· F1 zone Thu</span>`:""}</h3>${tip?`<p class="areatip">${esc(tip)}</p>`:""}<div class="near">${list.map(n=>nearCard(n, mode)).join("")}</div></section>`;
-      }).join("");
+      if(!hotel) return html + `<div class="empty"><strong>Pick your customer’s hotel</strong> to see ${esc(mode.toLowerCase())} spots in it or next door.</div>`;
+      const ar = state.areas.find(a=>a.id===hotel.area);
+      const at = forMeal.filter(n=>hotelName(n)===hotel.name).sort(closest);
+      const near = forMeal.filter(n=>n.area===hotel.area && hotelName(n)!==hotel.name).sort(closest);
+      const meta = [MONORAIL[hotel.area] || "", ar && ar.f1Risk ? "F1 zone Thu" : ""].filter(Boolean).join(" · ");
+      if(meta) html += `<p class="hotelmeta">${esc(meta)}</p>`;
+      if(!at.length && !near.length) return html + `<div class="empty">No ${esc(mode.toLowerCase())} spots at or near ${esc(hotel.name)} yet. Try another meal.</div>`;
+      if(at.length) html += section(`At ${hotel.name}`, minsRange(at), at, mode);
+      if(near.length) html += section("Next door", minsRange(near), near, mode);
     }
-    html += `<p class="note">Times, hours and booking policies are estimates from public listings (October 2026). Confirm before relying on them.</p>`;
+    html += `<p class="note">Minutes are ${unit}. Hours and booking policies are estimates (October 2026); call to confirm.</p>`;
     return html;
   }
 
@@ -490,8 +514,8 @@
   $("#view").addEventListener("change", async e=>{
     const t = e.target;
     if(t.id==="fl_mine"){ state.mine=t.checked; remember("mine", state.mine); render(); }
+    else if(t.id==="fl_hotel"){ state.hotel=t.value; remember("hotel", state.hotel); render(); }
     else if(t.id==="fl_off"){ state.showOff=t.checked; render(); }
-    else if(t.id==="fl_walk"){ state.walkable=t.checked; remember("walkable", state.walkable); render(); }
     else if(t.id==="fl_today"){ state.todayOnly=t.checked; render(); }
     else if(t.dataset.act==="status" && state.db && state.isOwner){
       try{ await state.db.collection("reservations").doc(t.dataset.id).update({status:t.value, updatedAt:new Date().toISOString()}); }
@@ -501,6 +525,8 @@
   $("#view").addEventListener("click", async e=>{
     const sb = e.target.closest("[data-near]");
     if(sb){ state.nearMode = sb.dataset.near; render(); return; }
+    const zb = e.target.closest("[data-zone]");
+    if(zb){ state.zone = zb.dataset.zone; remember("zone", state.zone); render(); return; }
     const b = e.target.closest("[data-act]"); if(!b || b.tagName==="SELECT") return;
     const id = b.dataset.id, act = b.dataset.act;
     if(act==="edit"){ const r = state.res.find(x=>x.id===id); if(r) openForm(r); }
