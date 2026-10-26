@@ -32,10 +32,12 @@ async function handler(request, context) {
   const editor = hasRole(principal, 'editor');
   try {
     if (request.method === 'GET') {
-      if (!editor) return json(200, { pending: 0, names: [] });
-      const { todo, patches } = await pending(store, seedDir());
+      // editor and seedFiles make this endpoint a one-glance check when the button doesn't appear
+      if (!editor) return json(200, { editor: false, pending: 0, names: [], note: 'Only editors can load updates.' });
+      const dir = seedDir();
+      const { todo, patches } = await pending(store, dir);
       const names = todo.filter((s) => s.collection === 'nearby').map((s) => s.body.name);
-      return json(200, { pending: names.length, areas: todo.length - names.length, edits: patches.length, names: names.slice(0, 8) });
+      return json(200, { editor: true, seedFiles: !!dir, pending: names.length, areas: todo.length - names.length, edits: patches.length, names: names.slice(0, 8) });
     }
     if (request.method !== 'POST') return json(405, { error: 'Method not allowed' });
     if (!editor) return json(403, { error: 'Editor role required' });
