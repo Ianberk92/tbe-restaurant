@@ -452,7 +452,9 @@
   /* ---------- Search ----------
      Every word typed must match (any order). Case and accents are ignored, so "cafe" finds "Café".
      Looks through restaurants (name, hotel, food, area) and bookings (restaurant, host, guests, company, notes). */
-  const fold = t => String(t ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/['\u2019]/g,"").toLowerCase();
+  /* Lowercase, drop accents and every kind of apostrophe (phones type ’), other punctuation → space */
+  const fold = t => String(t ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()
+    .replace(/['`\u00b4\u2018\u2019\u02bc]/g,"").replace(/[^a-z0-9\s]/g," ");
   const hits = (fields, words) => { const hay = fold(fields.join(" ")); return words.every(w=>hay.includes(w)); };
   function viewSearch(){
     const words = fold(state.q).split(/\s+/).filter(Boolean);
