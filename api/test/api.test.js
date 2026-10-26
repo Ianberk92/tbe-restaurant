@@ -199,11 +199,15 @@ test('editors load new places from seed/ once; existing, removed and pre-trackin
     // realNearby[1] was removed in the app before update tracking existed.
 
     assert.equal((await call('GET', null)).status, 401);
-    assert.equal((await call('GET', [])).jsonBody.pending, 0, 'viewers are never offered updates');
+    const viewer = (await call('GET', [])).jsonBody;
+    assert.equal(viewer.pending, 0, 'viewers are never offered updates');
+    assert.equal(viewer.editor, false, 'and are told why');
     assert.equal((await call('POST', [])).status, 403);
 
     const before = (await call('GET', ['editor'])).jsonBody;
     assert.equal(before.pending, 2, 'only the genuinely new places are offered');
+    assert.equal(before.editor, true);
+    assert.equal(before.seedFiles, true);
     assert.deepEqual(before.names.sort(), ['New Place One', 'New Place Two']);
     assert.equal(before.areas, 0);
 
