@@ -224,3 +224,39 @@ test('editors load new places from seed/ once; existing, removed and pre-trackin
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('one-time edits to live rows (seed/patches.json): applied once, other fields kept, missing rows skipped', async () => {
+  const fs = require('fs'), os = require('os');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'seedp-'));
+  fs.writeFileSync(path.join(dir, 'areas.json'), JSON.stringify([{ id: 'zone1', name: 'Zone' }]));
+  fs.writeFileSync(path.join(dir, 'nearby.json'), JSON.stringify([{ id: 'p1', name: 'P1', area: 'zone1', fit: ['Dinner'] }]));
+  fs.writeFileSync(path.join(dir, 'patches.json'), JSON.stringify({
+    _note: 'ignored',
+    upd1: { areas: { zone1: { getThere: 'Walk 5 min' } }, nearby: { p1: { area: 'zone2', total: 12 }, gone: { total: 1 } } },
+  }));
+  process.env.SEED_DIR = dir;
+  delete require.cache[require.resolve('../src/functions/updates')];
+  const { handler: updates } = require('../src/functions/updates');
+  const call = (method) => updates({ ...req(method, {}, { roles: ['editor'] }), params: {} }, ctx);
+  try {
+    for (const k of [...mem.keys()]) mem.delete(k);
+    mem.set('areas/zone1', { name: 'Zone' });
+    mem.set('nearby/p1', { name: 'P1 edited in app', area: 'zone1', fit: ['Dinner'], phone: '702' });
+    const g = (await call('GET')).jsonBody;
+    assert.equal(g.edits, 2, 'two live rows to edit; the missing one is skipped');
+    assert.equal(g.pending, 0);
+    const r = (await call('POST')).jsonBody;
+    assert.equal(r.edited, 2);
+    assert.deepEqual(mem.get('nearby/p1'), { name: 'P1 edited in app', area: 'zone2', fit: ['Dinner'], phone: '702', total: 12 }, 'patched fields change, the rest is kept');
+    assert.equal(mem.get('areas/zone1').getThere, 'Walk 5 min');
+    assert.ok(!mem.has('nearby/gone'));
+    // Applied once: a later in-app edit is not overwritten by the same patch.
+    mem.set('nearby/p1', { ...mem.get('nearby/p1'), total: 15 });
+    assert.equal((await call('GET')).jsonBody.edits, 0);
+    await call('POST');
+    assert.equal(mem.get('nearby/p1').total, 15);
+  } finally {
+    delete process.env.SEED_DIR;
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

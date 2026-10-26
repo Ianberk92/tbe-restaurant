@@ -55,6 +55,16 @@ h1{font-family:var(--f-display);font-weight:600;font-size:clamp(26px,4vw,34px);l
 .stat .n{font-family:var(--f-display);font-size:30px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
 .stat .l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
 .stat.alert .n{color:var(--bad)}
+.searchbar{position:relative;display:flex;align-items:center;margin-top:16px}
+.searchbar .sicon{position:absolute;left:13px;width:18px;height:18px;color:var(--muted);pointer-events:none}
+.searchbar input{width:100%;font:16px var(--f-body);color:var(--fg);padding:11px 80px 11px 40px;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
+.searchbar input:focus{border-color:var(--info-dot);outline:2px solid var(--info-dot);outline-offset:0}
+.searchbar input::-webkit-search-cancel-button{display:none}
+.searchbar #qclear{position:absolute;right:6px}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.sres{margin-bottom:22px}
+.hotjump{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.sres h3{font-size:16px;margin:0 0 10px}
 .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:20px 0 14px}
 .tabs{display:flex;gap:4px;flex-wrap:wrap;background:var(--surface-2);padding:4px;border-radius:9px}
 .tab{border:0;background:transparent;color:var(--muted);font:600 14px var(--f-body);padding:7px 12px;border-radius:6px;cursor:pointer}
@@ -241,6 +251,13 @@ dialog#mapDlg::backdrop{background:rgba(24,24,24,.5)}
 
 <main class="wrap">
   <div class="sumline" id="summary" aria-live="polite"></div>
+
+  <div class="searchbar" role="search">
+    <svg class="sicon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <label for="q" class="vh">Search</label>
+    <input type="search" id="q" autocomplete="off" enterkeyhint="search" placeholder="Search: steak, Wynn, Piero’s, a host…">
+    <button type="button" id="qclear" class="btn sm" hidden>Clear</button>
+  </div>
 
   <div class="toolbar">
     <div class="tabs" role="tablist" id="tabs">

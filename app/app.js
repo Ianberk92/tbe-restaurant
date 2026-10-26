@@ -4,7 +4,7 @@
   const DAYS = ["2026-11-16","2026-11-17","2026-11-18","2026-11-19"];
   const ACTIVE = new Set(["Hold","Confirmed"]);
   const state = { res: [], nearby: [], areas: [], loaded:false, nearLoaded:false, isOwner:false, db:null, downloads:null,
-    tab:"nearby", nearMode:"Breakfast", zone:"lvcc", hotel:"", mapsKey:"", mine:false, showOff:false, todayOnly:false, me:null, editing:null, editingEtag:null, editingNear:null, nearDelArmed:false, confirmDel:null, err:"" };
+    tab:"nearby", nearMode:"Breakfast", zone:"lvcc", hotel:"", q:"", mapsKey:"", mine:false, showOff:false, todayOnly:false, me:null, editing:null, editingEtag:null, editingNear:null, nearDelArmed:false, confirmDel:null, err:"" };
 
   const $ = s => document.querySelector(s);
   const remember = (k, v) => { try{ localStorage.setItem("redine."+k, JSON.stringify(v)); }catch(_){} };
@@ -102,11 +102,11 @@
   function renderSummary(){
     const attn = state.loaded ? state.res.filter(r=>flagsFor(r).length).length : 0;
     const up = state.updates;   /* editors only: new places shipped with the app but not yet in the live list */
-    const what = up && up.pending ? `${up.pending} new place${up.pending===1?"":"s"}` : "New areas";
+    const what = !up ? "" : up.pending ? `${up.pending} new place${up.pending===1?"":"s"}${up.edits?` and ${up.edits} update${up.edits===1?"":"s"}`:""}` : up.areas ? "New areas" : `${up.edits} update${up.edits===1?"":"s"}`;
     const upHtml = !up ? "" : up.busy ? `<span class="upd">Adding new places…</span>`
       : up.failed ? `<button type="button" class="upd" data-act="load-updates">Couldn’t add them. Tap to try again</button>`
       : up.msg ? `<span class="upd">${esc(up.msg)}</span>`
-      : up.pending || up.areas ? `<button type="button" class="upd" data-act="load-updates" title="${esc(up.names.join(", "))}${up.pending>up.names.length?", …":""}">＋ ${what} ready: add them to the list</button>` : "";
+      : up.pending || up.areas || up.edits ? `<button type="button" class="upd" data-act="load-updates" title="${esc(up.names.join(", "))}${up.pending>up.names.length?", …":""}">＋ ${what} ready: add them to the list</button>` : "";
     $("#summary").innerHTML = (attn
       ? `<button type="button" class="attn" data-goto="bookings">${attn} booking${attn===1?"":"s"} need${attn===1?"s":""} attention →</button>`
       : "") + upHtml;
@@ -121,7 +121,7 @@
     return `<div class="cardfoot"><label class="msg" for="st_${esc(r.id)}">Status</label><select id="st_${esc(r.id)}" data-act="status" data-id="${esc(r.id)}">${opts}</select><button class="btn sm" data-act="edit" data-id="${esc(r.id)}">Edit</button>${del}</div>`;
   }
 
-  function card(r){
+  function card(r, showDate){
     const fl = flagsFor(r);
     const map = safeUrl(r.map);
     const rows = [
@@ -138,7 +138,7 @@
     const lb = r.date===TODAY && ACTIVE.has(r.status) ? leaveBy(r) : "";
     return `<article class="card is-${esc((r.status||"").toLowerCase())}">
       ${lb?`<div class="leave">Leave the booth by <b>${esc(lb)}</b></div>`:""}
-      <div class="row1"><div><span class="time">${fmtTime(r.time)}</span><span class="meal">${esc(r.meal||"")}</span></div><span class="pill st-${esc(r.status)}">${esc(r.status||"—")}</span></div>
+      <div class="row1"><div><span class="time">${showDate?esc(shortDay(r.date))+" · ":""}${fmtTime(r.time)}</span><span class="meal">${esc(r.meal||"")}</span></div><span class="pill st-${esc(r.status)}">${esc(r.status||"—")}</span></div>
       <div><div class="rname">${esc(r.restaurant||"Untitled")}</div><div class="loc">${(()=>{const a=state.areas.find(x=>x.id===r.area);return a?`<span class="areachip">${esc(a.short||a.name)}</span> `:""})()}${esc(r.location||"")}${map?` · <a href="${esc(map)}" target="_blank" rel="noopener">Map</a>`:""}</div></div>
       ${fl.length?`<div class="flags">${fl.map(f=>`<div class="flag ${f.lvl}">${esc(f.text)}</div>`).join("")}</div>`:""}
       <dl class="kv">${rows.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>
@@ -238,8 +238,10 @@
      "Near a hotel" — meet a customer at or next to their hotel
      Monorail stations (north to south) say how many stops each hotel is from LVCC. */
   const MONORAIL = {sahara:"2 Monorail stops north", linq:"1 Monorail stop south", flamingo:"2 Monorail stops south", paris:"3 Monorail stops south", mgm:"4 Monorail stops south"};
-  const NEAR_LVCC = new Set(["lvcc","paradise","westgate","northstrip"]);   /* walk or Vegas Loop from Central Hall */
-  const NOT_HOTELS = /^(LVCC|Peppermill)\b/;   /* venues listed in the hotel field that aren't hotels */
+  const NEAR_LVCC = new Set(["lvcc","paradise","ccdr","westgate","northstrip"]);   /* walk or Vegas Loop from Central Hall */
+  /* An area can say where it belongs with zone:"lvcc"|"hotel"; otherwise the set above decides */
+  const nearLvcc = id => { const a = state.areas.find(x=>x.id===id); return a && (a.zone==="lvcc" || a.zone==="hotel") ? a.zone==="lvcc" : NEAR_LVCC.has(id); };
+  const NOT_HOTELS = /^(LVCC|Peppermill)\b|^\d/;   /* venues and street addresses listed in the hotel field that aren't hotels */
   const ZONES = [["lvcc","Near LVCC","What’s closest to the booth"],["hotel","Near a hotel","Dine near your customer’s hotel"]];
   /* "MGM Grand (inside Luchini)" -> "MGM Grand"; "The LINQ and Promenade" -> "The LINQ" */
   const hotelName = n => String(n.hotel || "").replace(/\s*\(.*\)\s*$/, "").replace(/ and Promenade$/, "").trim();
@@ -287,6 +289,7 @@
      Estimates only: the Map button shows Google's walking route from the hotel. */
   const HOTEL_GEO = {
     "Caesars Palace":{st:"strip", addr:3570, side:"W", inner:8, q:"Caesars Palace, 3570 S Las Vegas Blvd, Las Vegas, NV"},
+    "Circus Circus":{st:"strip", addr:2880, side:"W", inner:5, q:"Circus Circus, 2880 S Las Vegas Blvd, Las Vegas, NV"},
     "Courtyard LVCC":{st:"paradise", addr:3275, side:"W", inner:2, q:"Courtyard by Marriott Las Vegas Convention Center, 3275 Paradise Rd, Las Vegas, NV"},
     "Embassy Suites Convention Center":{st:"paradise", addr:3600, side:"E", inner:2, q:"Embassy Suites Convention Center, 3600 Paradise Rd, Las Vegas, NV"},
     "Flamingo":{st:"strip", addr:3555, side:"E", inner:4, q:"Flamingo Las Vegas, 3555 S Las Vegas Blvd, Las Vegas, NV"},
@@ -309,7 +312,14 @@
     "Westgate":{st:"paradise", addr:3000, side:"E", inner:4, q:"Westgate Las Vegas, 3000 Paradise Rd, Las Vegas, NV"},
     "Wynn / Encore":{st:"strip", addr:3131, side:"E", inner:6, q:"Wynn Las Vegas, 3131 S Las Vegas Blvd, Las Vegas, NV"}
   };
-  const geoOf = name => HOTEL_GEO[name] || HOTEL_GEO[String(name).replace(/ \(.*\)$/, "")] || null;
+  /* Standalone places list a street address instead of a hotel, e.g. "2985 Las Vegas Blvd S" */
+  function geoFromAddress(name){
+    const m = String(name).match(/^(\d{3,5})\s+(?:S\.?\s+)?(Las Vegas Blvd|Paradise Rd)/i);
+    if(!m) return null;
+    const addr = Number(m[1]);
+    return {st: /paradise/i.test(m[2]) ? "paradise" : "strip", addr, side: addr % 2 ? "E" : "W", inner:1, q: name + ", Las Vegas, NV"};
+  }
+  const geoOf = name => HOTEL_GEO[name] || HOTEL_GEO[String(name).replace(/ \(.*\)$/, "")] || geoFromAddress(name) || null;
   /* Extra walk for places deeper inside their hotel than its nearest restaurant (e.g. Battista's behind the LINQ) */
   function deeper(n){
     const h = hotelName(n);
@@ -348,7 +358,7 @@
     const unit = mode==="Breakfast" ? "from the restaurant to Central Hall" : "from the booth to the table";
 
     if(zone==="lvcc"){
-      const items = forMeal.filter(n=>NEAR_LVCC.has(n.area)).sort(closest);
+      const items = forMeal.filter(n=>nearLvcc(n.area)).sort(closest);
       if(!items.length) return html + `<div class="empty">No ${esc(mode.toLowerCase())} spots near LVCC yet.</div>`;
       html += `<div class="near">${items.map(n=>nearCard(n, mode)).join("")}</div>`;
     } else {
@@ -416,9 +426,10 @@
   }
   function openMap(n){
     /* From "Near a hotel", start at the customer's hotel */
-    mapHotel = state.tab==="nearby" && state.zone==="hotel" ? (HOUSING.find(h=>h.name===state.hotel) || (state.hotel ? {name:state.hotel, at:[state.hotel]} : null)) : null;
+    const searching = !!state.q.trim();   /* search results use the plain booth-to-table view */
+    mapHotel = !searching && state.tab==="nearby" && state.zone==="hotel" ? (HOUSING.find(h=>h.name===state.hotel) || (state.hotel ? {name:state.hotel, at:[state.hotel]} : null)) : null;
     mapPlace = n; mapFrom = mapHotel ? "hotel" : "lvcc";
-    mapMorning = !mapHotel && state.tab==="nearby" && state.nearMode==="Breakfast";
+    mapMorning = !mapHotel && !searching && state.tab==="nearby" && state.nearMode==="Breakfast";
     const hb = $("#mapDlg [data-from=hotel]");
     hb.hidden = !mapHotel; if(mapHotel) hb.textContent = mapHotel.name;
     $("#mapRouteLabel").textContent = mapMorning ? "Morning route" : "Route from";
@@ -438,10 +449,38 @@
   $("#mapClose").addEventListener("click", ()=>$("#mapDlg").close());
   $("#mapDlg").addEventListener("close", ()=>{ $("#mapFrame").src = "about:blank"; mapPlace = null; });
 
+  /* ---------- Search ----------
+     Every word typed must match (any order). Case and accents are ignored, so "cafe" finds "Café".
+     Looks through restaurants (name, hotel, food, area) and bookings (restaurant, host, guests, company, notes). */
+  const fold = t => String(t ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/['\u2019]/g,"").toLowerCase();
+  const hits = (fields, words) => { const hay = fold(fields.join(" ")); return words.every(w=>hay.includes(w)); };
+  function viewSearch(){
+    const words = fold(state.q).split(/\s+/).filter(Boolean);
+    const areaText = id => { const a = state.areas.find(x=>x.id===id); return a ? a.short || a.name : ""; };   /* short name only: long ones list several hotels */
+    const places = state.nearby
+      .filter(n=>hits([n.name, n.venue, n.hotel, n.meals, (n.fit||[]).join(" "), BADGE[n.booking]||n.booking, n.bookingNote, n.watch, areaText(n.area)], words))
+      .sort((a,b)=>(hits([a.name],words)?0:1)-(hits([b.name],words)?0:1) || closest(a,b));
+    const books = state.res
+      .filter(r=>hits([r.restaurant, r.location, r.host, r.attendees, r.company, r.purpose, r.conf, r.bookedUnder, r.notes, r.meal, r.status, dayLabel(r.date)], words))
+      .sort(byWhen);
+    /* A hotel name typed → offer its "Near a hotel" view (e.g. Harrah's, which has no restaurants of its own) */
+    const hl = hotelList();
+    const hotels = [...hl.block, ...hl.others].filter(h=>hits([h.name], words)).slice(0, 4);
+    const jump = hotels.length ? `<div class="hotjump">${hotels.map(h=>`<button type="button" class="btn sm" data-hotel="${esc(h.name)}">Near ${esc(h.name)} →</button>`).join("")}</div>` : "";
+    const q = esc(state.q.trim());
+    if(!places.length && !books.length && hotels.length) return jump + `<p class="msg">No restaurants inside ${esc(hotels[0].name)}. Tap above for places nearby.</p>`;
+    if(!places.length && !books.length) return jump + `<div class="empty"><strong>Nothing found for “${q}”</strong>Try a restaurant, hotel, food (steak, sushi, breakfast) or a host’s name.</div>`;
+    let html = jump;
+    if(books.length) html += `<section class="sres"><h3>Bookings <span class="msg">${books.length}</span></h3><div class="cards">${books.map(r=>card(r, true)).join("")}</div></section>`;
+    if(places.length) html += `<section class="sres"><h3>Places <span class="msg">${places.length}</span></h3><div class="near">${places.map(n=>nearCard(n, "")).join("")}</div></section>`;
+    return html + `<p class="note">Minutes are from the booth to the table. Hours and booking policies are from October 2026 listings; call to confirm.</p>`;
+  }
+
   function render(){
     renderSummary();
-    document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected", String(b.dataset.tab===state.tab)));
-    const v = state.tab==="bookings" ? viewBookings() : viewNearby();
+    const searching = !!state.q.trim();
+    document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected", String(!searching && b.dataset.tab===state.tab)));
+    const v = searching ? viewSearch() : state.tab==="bookings" ? viewBookings() : viewNearby();
     $("#view").innerHTML = (state.err?`<div class="flag bad" style="margin-bottom:12px">${esc(state.err)}</div>`:"") + v;
     for(const fa of [$("#f_area"), $("#n_area")]){ if(fa && fa.options.length !== state.areas.length+1){ const cur = fa.value; fa.innerHTML = `<option value="">—</option>` + [...state.areas].sort((a,b)=>(a.order||0)-(b.order||0)).map(a=>`<option value="${esc(a.id)}">${esc(a.name)}</option>`).join(""); fa.value = cur; } }
     $("#hostList").innerHTML = [...new Set(state.res.map(r=>r.host).filter(Boolean))].map(h=>`<option value="${esc(h)}">`).join("");
@@ -596,14 +635,20 @@
       try{
         const r = await fetch("/api/updates", {method:"POST", credentials:"same-origin", cache:"no-store"});
         if(!r.ok) throw new Error("HTTP "+r.status);
-        const {places, added} = await r.json();
-        state.updates = {pending:0, areas:0, names:[], msg: places ? `Added ${places} new place${places===1?"":"s"}.` : `Added ${added} new area${added===1?"":"s"}.`};
+        const {places, added, edited} = await r.json();
+        const parts = [places ? `${places} new place${places===1?"":"s"}` : added ? `${added} new area${added===1?"":"s"}` : "", edited ? `${edited} update${edited===1?"":"s"}` : ""].filter(Boolean);
+        state.updates = {pending:0, areas:0, edits:0, names:[], msg: parts.length ? `Added ${parts.join(" and ")}.` : "Already up to date."};
       }catch(_){ state.updates = {...state.updates, busy:false, failed:true}; }   /* keep a retry button */
       await loadAll(); renderSummary();
       return;
     }
     if(!e.target.closest("[data-goto]")) return; state.tab="bookings"; remember("tab", state.tab); state.showOff=false; state.mine=false; render(); $("#view").scrollIntoView({block:"start"}); });
-  $("#tabs").addEventListener("click", e=>{ const b=e.target.closest(".tab"); if(!b) return; state.tab=b.dataset.tab; remember("tab", state.tab); state.confirmDel=null; render(); });
+  function setSearch(v){ state.q = v; $("#q").value = v; $("#qclear").hidden = !v; render(); }
+  let qTimer;
+  $("#q").addEventListener("input", e=>{ $("#qclear").hidden = !e.target.value; clearTimeout(qTimer); qTimer = setTimeout(()=>{ state.q = e.target.value; render(); }, 150); });
+  $("#q").addEventListener("keydown", e=>{ if(e.key==="Escape") setSearch(""); if(e.key==="Enter") e.target.blur(); });   /* Enter hides the phone keyboard */
+  $("#qclear").addEventListener("click", ()=>{ setSearch(""); $("#q").focus(); });
+  $("#tabs").addEventListener("click", e=>{ const b=e.target.closest(".tab"); if(!b) return; state.tab=b.dataset.tab; remember("tab", state.tab); state.confirmDel=null; if(state.q) setSearch(""); else render(); });
   $("#view").addEventListener("change", async e=>{
     const t = e.target;
     if(t.id==="fl_mine"){ state.mine=t.checked; remember("mine", state.mine); render(); }
@@ -618,6 +663,8 @@
   $("#view").addEventListener("click", async e=>{
     const sb = e.target.closest("[data-near]");
     if(sb){ state.nearMode = sb.dataset.near; render(); return; }
+    const hj = e.target.closest("[data-hotel]");
+    if(hj){ state.tab = "nearby"; state.zone = "hotel"; state.hotel = hj.dataset.hotel; remember("tab", "nearby"); remember("zone", "hotel"); remember("hotel", state.hotel); setSearch(""); window.scrollTo(0, 0); return; }
     const zb = e.target.closest("[data-zone]");
     if(zb){ state.zone = zb.dataset.zone; remember("zone", state.zone); render(); return; }
     const b = e.target.closest("[data-act]"); if(!b || b.tagName==="SELECT") return;
@@ -729,7 +776,7 @@
     $("#addBtn").hidden = !state.isOwner;
     $("#exportBtn").hidden = false;
     await loadAll();
-    if(state.isOwner){ try{ const u = await apiCallRaw("/api/updates"); if(u && (u.pending || u.areas)){ state.updates = {pending:u.pending||0, areas:u.areas||0, names:u.names||[]}; renderSummary(); } }catch(_){} }
+    if(state.isOwner){ try{ const u = await apiCallRaw("/api/updates"); if(u && (u.pending || u.areas || u.edits)){ state.updates = {pending:u.pending||0, areas:u.areas||0, edits:u.edits||0, names:u.names||[]}; renderSummary(); } }catch(_){} }
     try{ const c = await apiCallRaw("/api/config"); state.mapsKey = (c && c.mapsEmbedKey) || ""; }catch(_){}   /* optional: keyless map if missing */
     setInterval(loadAll, 30000);           /* pick up changes made on other devices */
     setInterval(()=>{ if(state.loaded && $("#formPanel").hidden && $("#nearPanel").hidden) render(); }, 10*60*1000);
