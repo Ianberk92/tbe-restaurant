@@ -36,5 +36,81 @@
         "mapUrl": "https://www.google.com/maps/search/?api=1&query=Peppermill+Restaurant+%26+Fireside+Lounge+2985+Las+Vegas+Blvd+S+Las+Vegas"
       }
     }
+  },
+  "2026-10-27-walk": {
+    "nearby": {
+      "donsprime": {
+        "exitMin": 8,
+        "walkMin": 22,
+        "walkLabel": "walk from the Central Hall doors",
+        "insideMin": 0,
+        "total": 30,
+        "totalBusy": 37,
+        "route": "Via West Hall to Fontainebleau (or free Vegas Loop)"
+      },
+      "motherwolf": {
+        "exitMin": 8,
+        "walkMin": 22,
+        "walkLabel": "walk from the Central Hall doors",
+        "insideMin": 0,
+        "total": 30,
+        "totalBusy": 37,
+        "route": "Via West Hall to Fontainebleau (or free Vegas Loop)"
+      },
+      "papisteak": {
+        "exitMin": 8,
+        "walkMin": 22,
+        "walkLabel": "walk from the Central Hall doors",
+        "insideMin": 0,
+        "total": 30,
+        "totalBusy": 37,
+        "route": "Via West Hall to Fontainebleau (or free Vegas Loop)"
+      },
+      "vida": {
+        "exitMin": 8,
+        "walkMin": 22,
+        "walkLabel": "walk from the Central Hall doors",
+        "insideMin": 0,
+        "total": 30,
+        "totalBusy": 37,
+        "route": "Via West Hall to Fontainebleau (or free Vegas Loop)"
+      },
+      "juniors": {
+        "exitMin": 8,
+        "walkMin": 22,
+        "walkLabel": "walk from the Central Hall doors",
+        "insideMin": 0,
+        "total": 30,
+        "totalBusy": 37,
+        "route": "Cross the Strip into Resorts World; casino floor (or Vegas Loop to Resorts World)"
+      },
+      "carversteak": {
+        "exitMin": 8,
+        "walkMin": 23,
+        "walkLabel": "walk from the Central Hall doors",
+        "insideMin": 0,
+        "total": 31,
+        "totalBusy": 38,
+        "route": "Convention Center Dr; cross the Strip into Resorts World (or Vegas Loop to Resorts World)"
+      },
+      "swsteak": {
+        "exitMin": 8,
+        "walkMin": 25,
+        "walkLabel": "walk from the Central Hall doors",
+        "insideMin": 0,
+        "total": 33,
+        "totalBusy": 40,
+        "route": "Strip south past Encore to the Wynn (or Vegas Loop to Encore, then walk through to the Wynn)"
+      },
+      "tableau": {
+        "exitMin": 8,
+        "walkMin": 25,
+        "walkLabel": "walk from the Central Hall doors",
+        "insideMin": 0,
+        "total": 33,
+        "totalBusy": 40,
+        "route": "Strip south to Wynn, Tower Suites (or Vegas Loop to Encore, then walk through to the Wynn)"
+      }
+    }
   }
 }
