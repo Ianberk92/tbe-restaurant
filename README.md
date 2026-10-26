@@ -132,7 +132,7 @@ TABLES_CONNECTION_STRING="<connection string from the SWA app settings>" node sc
 # Loaded 57 nearby
 ```
 
-**Later data updates (no Azure access needed):** after new restaurants are merged into `seed/` and deployed, editors see a "＋ N new places ready" button at the top of the app. Tapping it adds only the missing places. Rows already in the table are never changed, and places removed in the app aren't offered again. It's backed by `api/src/functions/updates.js` and `api/src/lib/seedsync.js`, and the deploy workflow copies `seed/` into the API. Add new places to `seed/nearby.json` / `seed/areas.json` only. `seed/baseline.json` lists what had already shipped before tracking began, so don't add new ids there.
+**Later data updates (no Azure access needed):** after new restaurants are merged into `seed/` and deployed, editors see a "＋ N new places ready" button at the top of the app. Tapping it adds only the missing places. Rows already in the table are never changed, and places removed in the app aren't offered again. It's backed by `api/src/functions/updates.js` and `api/src/lib/seedsync.js`, and the deploy workflow copies `seed/` into the API. Add new places to `seed/nearby.json` / `seed/areas.json` only. Changes to rows that are already live go in `seed/patches.json` under a new update name (each one is applied once). Update the seed files to match, so a fresh table gets the same result. `seed/baseline.json` lists what had already shipped before tracking began, so don't add new ids there.
 
 The script is safe to re-run. By default it only adds rows that aren't in the table yet, so restaurants edited in the app are kept, and it follows the same rule as the in-app button, so places removed in the app don't come back. `--overwrite` replaces existing rows with the seed files (used for restores). It never touches `reservations` unless a `seed/reservations.json` file exists.
 
@@ -186,6 +186,7 @@ The key is a browser key: it is served to signed-in users by `GET /api/config` a
 - [ ] A regular user sees "View only", with no Add/Edit/Delete buttons.
 - [ ] A regular user calling `PUT /api/data/reservations/test` (for example from browser dev tools) gets **403**.
 - [ ] An editor sees "You can edit", adds a test hold, changes its status and deletes it.
+- [ ] The **search box** finds restaurants by name, hotel or food, and bookings by restaurant, host or guest. Typing a hotel name offers a "Near <hotel> →" shortcut.
 - [ ] The **Places** tab has two buttons. **Near LVCC** lists the closest places first. **Near a hotel** has you pick the customer's hotel, then shows places *At* that hotel and *Next door*. Each card has **Book / Call / Map** buttons, and **Map** (or tapping a name) opens a map with the route from Central Hall or The LINQ.
 - [ ] **+ Add booking**: picking a restaurant fills in its area and walk time; pick a day, time, party size and save. The **Bookings** tab shows it, and "Just mine" filters to bookings you host.
 - [ ] An editor adds a test restaurant with **+ Add restaurant**, edits it, then removes it.

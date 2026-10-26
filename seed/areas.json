@@ -26,8 +26,8 @@
     "blurb": "The big Strip resorts nearest LVCC, on the West Hall side of the campus. Many customers and senior guests stay here. Upscale, reservable restaurants that suit customer dinners, and hotel breakfasts that work if the customer is staying in the same resort.",
     "f1": "Wynn/Encore sits just north of the circuit's Sands Ave turn. On Thu 11/19, expect Strip closures and gridlock from early afternoon. The Loop runs underground, so use it instead of a car. Resorts World and Fontainebleau are farther north but still see heavy traffic.",
     "f1Risk": true,
-    "getThere": "Vegas Loop from the LVCC Central station under the hall: Encore and Resorts World $4.25 one way; Fontainebleau listed as free. Too far to walk from Central Hall.",
-    "name": "North Strip resorts: Wynn/Encore, Resorts World, Fontainebleau",
+    "getThere": "Walk about 18–27 min from the Central Hall doors (Encore and Resorts World across the Strip; Fontainebleau via West Hall), or ride the Vegas Loop: Fontainebleau free, Encore and Resorts World $4.25.",
+    "name": "North Strip resorts: Wynn/Encore, Resorts World, Fontainebleau, Circus Circus",
     "order": 3,
     "short": "North Strip",
     "whoStays": "Customers, partners and executives who prefer a Strip resort"
@@ -97,5 +97,17 @@
     "order": 8,
     "short": "MGM Grand",
     "whoStays": "Large-conference attendees and budget-conscious travelers"
+  },
+  {
+    "id": "ccdr",
+    "blurb": "Standalone restaurants between Central Hall and the Strip, along Convention Center Dr: an old-Vegas Italian dining room, a classic deli, and the iconic Peppermill. No hotel needed.",
+    "f1": "Outside the race circuit.",
+    "f1Risk": false,
+    "getThere": "Walk: cross Paradise Rd at Convention Center Dr and head west. Piero's is about 6 min from the doors; the Strip corner (Peppermill, Denny's) about 15–16 min.",
+    "name": "Convention Center Drive and the Strip corner",
+    "order": 1.5,
+    "short": "Convention Center Dr",
+    "whoStays": "Anyone; these are not hotel restaurants",
+    "zone": "lvcc"
   }
 ]

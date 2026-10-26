@@ -1,0 +1,40 @@
+{
+  "_note": "Edits to rows that are already live. Each entry is applied once (tracked in meta/seed), only if the row exists. Key = update name.",
+  "2026-10-27": {
+    "areas": {
+      "northstrip": {
+        "getThere": "Walk about 18–27 min from the Central Hall doors (Encore and Resorts World across the Strip; Fontainebleau via West Hall), or ride the Vegas Loop: Fontainebleau free, Encore and Resorts World $4.25.",
+        "name": "North Strip resorts: Wynn/Encore, Resorts World, Fontainebleau, Circus Circus"
+      }
+    },
+    "nearby": {
+      "peppermill": {
+        "name": "Peppermill Restaurant & Fireside Lounge",
+        "venue": "2985 Las Vegas Blvd S",
+        "hotel": "2985 Las Vegas Blvd S",
+        "area": "ccdr",
+        "fit": [
+          "Breakfast",
+          "Lunch",
+          "Dinner",
+          "Drinks"
+        ],
+        "booking": "Walk-in",
+        "bookingNote": "Walk-ins; call ahead for groups after 4pm",
+        "bookUrl": "",
+        "meals": "Breakfast, lunch, dinner, late night; Fireside Lounge bar",
+        "hours": "Mon–Wed 7am–2am; Thu 24 hours",
+        "phone": "702-735-4177",
+        "watch": "Iconic and very busy; expect a wait at peak times",
+        "exitMin": 8,
+        "walkMin": 16,
+        "walkLabel": "walk from the Central Hall doors",
+        "insideMin": 0,
+        "total": 24,
+        "totalBusy": 31,
+        "route": "West on Convention Center Dr to the Strip, then one block north (no Strip crossing)",
+        "mapUrl": "https://www.google.com/maps/search/?api=1&query=Peppermill+Restaurant+%26+Fireside+Lounge+2985+Las+Vegas+Blvd+S+Las+Vegas"
+      }
+    }
+  }
+}

@@ -19,7 +19,7 @@ const path = require('path');
 process.env.NODE_PATH = path.join(__dirname, '..', 'api', 'node_modules');
 require('module').Module._initPaths();
 const store = require('../api/src/lib/store');
-const { COLLECTIONS, pending, remember } = require('../api/src/lib/seedsync');
+const { COLLECTIONS, pending, applyPatches, remember } = require('../api/src/lib/seedsync');
 
 const overwrite = process.argv.includes('--overwrite');
 
@@ -39,7 +39,7 @@ async function main() {
     }
     return;
   }
-  const { seed, meta, todo } = await pending(store, dir);
+  const { seed, meta, todo, patches, patchKeys } = await pending(store, dir);
   for (const collection of COLLECTIONS) {
     const mine = todo.filter((s) => s.collection === collection);
     let loaded = 0;
@@ -47,7 +47,9 @@ async function main() {
     const skipped = seed.filter((s) => s.collection === collection).length - loaded;
     console.log(`Loaded ${loaded} ${collection}` + (skipped ? ` (skipped ${skipped}: already in the table or removed in the app; use --overwrite to restore)` : ''));
   }
-  await remember(store, meta, seed, 'seed-script');
+  const edited = await applyPatches(store, patches, 'seed-script');
+  if (patches.length) console.log(`Updated ${edited} existing row(s): ${patches.map((p) => `${p.collection}/${p.id}`).join(', ')}`);
+  await remember(store, meta, seed, 'seed-script', patchKeys);
   // Reservations are only loaded from a backup file, and never over existing ones.
   const resFile = path.join(dir, 'reservations.json');
   if (fs.existsSync(resFile)) {
