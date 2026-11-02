@@ -59,8 +59,39 @@ test('signed-in viewer can list reference data', async () => {
   assert.equal(r.jsonBody[0].name, "Zio's");
 });
 
-test('viewer cannot write', async () => {
-  const r = await handler(req('PUT', { collection: 'reservations', id: 'r1' }, { roles: [], body: { restaurant: 'Edge' } }), ctx);
+test('anyone signed in can add a booking; only its creator or an editor can change or delete it', async () => {
+  const as = (email, roles = []) => Buffer.from(JSON.stringify({ userDetails: email, userRoles: ['anonymous', 'authenticated', ...roles] })).toString('base64');
+  const call = (method, id, email, roles, body) => {
+    const h = new Map([['x-ms-client-principal', as(email, roles)]]);
+    return handler({ method, params: { collection: 'reservations', id }, headers: { get: (k) => h.get(k) ?? null }, text: async () => (body === undefined ? '' : JSON.stringify(body)) }, ctx);
+  };
+  mem.delete('reservations/b1');
+  // A salesperson (no editor role) books a table; createdBy comes from their sign-in, not from the request.
+  let r = await call('PUT', 'b1', 'MCampbell@terabase.energy', [], { restaurant: 'Edge', status: 'Hold', createdBy: 'someone-else@x.com' });
+  assert.equal(r.status, 200);
+  assert.equal(mem.get('reservations/b1').createdBy, 'mcampbell@terabase.energy');
+  // They can update and cancel their own booking (email case doesn't matter).
+  assert.equal((await call('PATCH', 'b1', 'mcampbell@terabase.energy', [], { status: 'Confirmed' })).status, 200);
+  assert.equal((await call('PUT', 'b1', 'mcampbell@terabase.energy', [], { restaurant: 'Edge', status: 'Confirmed', party: 4 })).status, 200);
+  assert.equal(mem.get('reservations/b1').createdBy, 'mcampbell@terabase.energy', 'replacing keeps the original creator');
+  // Someone else (not an editor) cannot change or delete it.
+  assert.equal((await call('PATCH', 'b1', 'pgousseland@terabase.energy', [], { status: 'Cancelled' })).status, 403);
+  assert.equal((await call('PUT', 'b1', 'pgousseland@terabase.energy', [], { restaurant: 'Mine now' })).status, 403);
+  assert.equal((await call('DELETE', 'b1', 'pgousseland@terabase.energy', [])).status, 403);
+  assert.equal(mem.get('reservations/b1').status, 'Confirmed');
+  // An editor can change anyone's booking, and the creator is kept.
+  assert.equal((await call('PATCH', 'b1', 'lramos@terabase.energy', ['editor'], { status: 'Cancelled' })).status, 200);
+  assert.equal(mem.get('reservations/b1').createdBy, 'mcampbell@terabase.energy');
+  // Older bookings with no creator: editors only.
+  mem.set('reservations/old1', { restaurant: 'Old', status: 'Hold' });
+  assert.equal((await call('PATCH', 'old1', 'mcampbell@terabase.energy', [], { status: 'Cancelled' })).status, 403);
+  // The creator can delete their own.
+  assert.equal((await call('DELETE', 'b1', 'mcampbell@terabase.energy', [])).status, 204);
+  assert.ok(!mem.has('reservations/b1'));
+});
+
+test('restaurants stay editor-only', async () => {
+  const r = await handler(req('PUT', { collection: 'nearby', id: 'x1' }, { roles: [], body: { name: 'X', fit: ['Dinner'] } }), ctx);
   assert.equal(r.status, 403);
 });
 

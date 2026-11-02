@@ -146,7 +146,9 @@ Repeat for each editor (Linda, `lramos@terabase.energy`, plus anyone else who sh
 - Domain: the site's hostname
 - Role: **`editor`**
 
-Send each editor their invitation link. They accept it once while signed in, and from then on see **+ Add booking**, **+ Add restaurant**, Edit and Delete. Everyone else signs in and gets view-only access automatically; no invitation is needed. Several editors can work at once: if two people edit the same item, the second save is refused with a "someone else changed this" message instead of overwriting the first.
+Send each editor their invitation link. They accept it once while signed in, and from then on can edit restaurants, load updates ("＋ … ready"), and change or delete any booking.
+
+Everyone else with a Terabase account needs no invitation. When they sign in, the header says **"Can book"**: they can browse and search, **add bookings** ("+ Add booking", or "+ Booking" on a restaurant card), and change or cancel the bookings **they added**. Each booking records who added it (`createdBy`, set by the API from the sign-in). Bookings added before this change can only be changed by editors. If the Entra enterprise app has **Assignment required = Yes**, people must also be assigned to it (Entra → Enterprise applications → the app → Users and groups). Several editors can work at once: if two people edit the same item, the second save is refused with a "someone else changed this" message instead of overwriting the first.
 
 *Alternative:* if you'd rather manage editors through an Entra group, use SWA's `rolesSource` function to map a group to `editor`. That isn't included here.
 
@@ -183,7 +185,7 @@ The key is a browser key: it is served to signed-in users by `GET /api/config` a
 ### 8. Smoke test
 
 - [ ] Opening the site in a private window redirects to Microsoft sign-in, and only Terabase accounts can sign in.
-- [ ] A regular user sees "View only", with no Add/Edit/Delete buttons.
+- [ ] A regular user sees "Can book". They can add a booking and edit their own, but get no restaurant Add/Edit and no controls on other people's bookings.
 - [ ] A regular user calling `PUT /api/data/reservations/test` (for example from browser dev tools) gets **403**.
 - [ ] An editor sees "You can edit", adds a test hold, changes its status and deletes it.
 - [ ] The **search box** finds restaurants by name, hotel or food, and bookings by restaurant, host or guest. Typing a hotel name offers a "Near <hotel> →" shortcut.

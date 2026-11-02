@@ -3,7 +3,7 @@
   "use strict";
   const DAYS = ["2026-11-16","2026-11-17","2026-11-18","2026-11-19"];
   const ACTIVE = new Set(["Hold","Confirmed"]);
-  const state = { res: [], nearby: [], areas: [], loaded:false, nearLoaded:false, isOwner:false, db:null, downloads:null,
+  const state = { res: [], nearby: [], areas: [], loaded:false, nearLoaded:false, isOwner:false, canBook:false, email:"", db:null, downloads:null,
     tab:"nearby", nearMode:"Breakfast", zone:"lvcc", hotel:"", q:"", mapsKey:"", mine:false, showOff:false, todayOnly:false, me:null, editing:null, editingEtag:null, editingNear:null, nearDelArmed:false, confirmDel:null, err:"" };
 
   const $ = s => document.querySelector(s);
@@ -112,8 +112,10 @@
       : "") + upHtml;
   }
 
+  /* Anyone signed in can add bookings; changing one needs the editor role or being the person who added it (the API checks too) */
+  const canEditRes = r => state.isOwner || (!!r && !!state.email && String(r.createdBy||"").toLowerCase() === state.email);
   function statusControl(r){
-    if(!state.isOwner) return "";
+    if(!canEditRes(r)) return "";
     const opts = ["Hold","Confirmed","Cancelled"].concat(r.status==="Released"?["Released"]:[]).map(s=>`<option${s===r.status?" selected":""}>${s}</option>`).join("");
     const del = state.confirmDel===r.id
       ? `<button class="btn sm danger" data-act="del-yes" data-id="${esc(r.id)}">Delete for good</button><button class="btn sm" data-act="del-no">Keep</button>`
@@ -148,7 +150,7 @@
 
   function emptyState(kind){
     if(!state.loaded) return `<div class="empty"><strong>Loading bookings…</strong>Connecting to the shared tracker.</div>`;
-    if(kind==="none") return `<div class="empty"><strong>No bookings yet</strong>${state.isOwner?"Use “+ Add booking”, or pick a spot from Places and choose “+ Booking”.":"No holds have been added yet. Check back closer to the show."}</div>`;
+    if(kind==="none") return `<div class="empty"><strong>No bookings yet</strong>${state.canBook?"Use “+ Add booking”, or pick a spot from Places and choose “+ Booking”.":"No holds have been added yet. Check back closer to the show."}</div>`;
     if(kind==="today") return `<div class="empty"><strong>Nothing booked for today</strong>Turn off “Today only” to see the rest of the week.</div>`;
     if(kind==="mine") return `<div class="empty"><strong>Nothing hosted by you yet</strong>Turn off “Just mine” to see everyone’s bookings.</div>`;
     return `<div class="empty"><strong>No active bookings</strong>Turn on “Show cancelled” to see released and cancelled ones.</div>`;
@@ -209,9 +211,9 @@
     }
     if(tel) acts.push(`<a class="btn sm" href="${esc(tel)}">Call</a>`);
     acts.push(`<button type="button" class="btn sm" data-act="map" data-id="${esc(n.id)}">Map</button>`);
-    const own = state.isOwner
-      ? `<div class="cardfoot">${n.booking!=="Walk-in" && n.booking!=="Grab-and-go" ? `<button class="btn sm" data-act="usenear" data-id="${esc(n.id)}" title="Log a booking you've made here">+ Booking</button>` : ""}<button class="btn sm" data-act="editnear" data-id="${esc(n.id)}">Edit</button></div>`
-      : "";
+    const logBtn = state.canBook && n.booking!=="Walk-in" && n.booking!=="Grab-and-go" ? `<button class="btn sm" data-act="usenear" data-id="${esc(n.id)}" title="Log a booking you've made here">+ Booking</button>` : "";
+    const editBtn = state.isOwner ? `<button class="btn sm" data-act="editnear" data-id="${esc(n.id)}">Edit</button>` : "";   /* restaurants: editors only */
+    const own = logBtn || editBtn ? `<div class="cardfoot">${logBtn}${editBtn}</div>` : "";
     return `<article class="card ncard">
         <div class="row1"><button type="button" class="rname link" data-act="map" data-id="${esc(n.id)}">${esc(n.name)}</button><span class="pill bk-${esc(n.booking)}">${esc(BADGE[n.booking]||n.booking||"")}</span></div>
         ${walk
@@ -551,7 +553,8 @@
 
   $("#resForm").addEventListener("submit", async e=>{
     e.preventDefault();
-    if(!state.db || !state.isOwner) return;
+    if(!state.db || !state.canBook) return;
+    if(state.editing && !canEditRes(state.res.find(x=>x.id===state.editing))) return;
     const data = {};
     for(const [k,id] of Object.entries(FIELDS)){
       let v = document.getElementById(id).value.trim();
@@ -657,7 +660,7 @@
     else if(t.id==="fl_hotel"){ state.hotel=t.value; remember("hotel", state.hotel); render(); }
     else if(t.id==="fl_off"){ state.showOff=t.checked; render(); }
     else if(t.id==="fl_today"){ state.todayOnly=t.checked; render(); }
-    else if(t.dataset.act==="status" && state.db && state.isOwner){
+    else if(t.dataset.act==="status" && state.db && canEditRes(state.res.find(x=>x.id===t.dataset.id))){
       try{ await state.db.collection("reservations").doc(t.dataset.id).update({status:t.value, updatedAt:new Date().toISOString()}); }
       catch(err){ state.err="Status change didn’t save. Try again."; render(); }
     }
@@ -671,10 +674,10 @@
     if(zb){ state.zone = zb.dataset.zone; remember("zone", state.zone); render(); return; }
     const b = e.target.closest("[data-act]"); if(!b || b.tagName==="SELECT") return;
     const id = b.dataset.id, act = b.dataset.act;
-    if(act==="edit"){ const r = state.res.find(x=>x.id===id); if(r) openForm(r); }
+    if(act==="edit"){ const r = state.res.find(x=>x.id===id); if(r && canEditRes(r)) openForm(r); }
     else if(act==="del"){ state.confirmDel=id; render(); }
     else if(act==="del-no"){ state.confirmDel=null; render(); }
-    else if(act==="del-yes" && state.db){
+    else if(act==="del-yes" && state.db && canEditRes(state.res.find(x=>x.id===id))){
       state.confirmDel=null;
       const r = state.res.find(x=>x.id===id);
       try{ await state.db.collection("reservations").doc(id).delete({etag: r && r.etag}); }
@@ -760,6 +763,8 @@
     let me = null;
     try{ const r = await fetch("/.auth/me", {cache:"no-store"}); me = (await r.json()).clientPrincipal; }catch(_){}
     state.isOwner = !!(me && Array.isArray(me.userRoles) && me.userRoles.includes("editor"));
+    state.canBook = !!me;   /* any signed-in Terabase account */
+    state.email = String((me && me.userDetails) || "").toLowerCase();
     if(me){
       const claim = t => ((me.claims||[]).find(c=>c.typ===t) || {}).val;
       const email = String(me.userDetails||"").toLowerCase();
@@ -774,8 +779,8 @@
       const a = document.createElement("a"); a.href = url; a.download = filename;
       document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 1000);
     }};
-    $("#role").innerHTML = (state.isOwner ? "<b>Editor</b>" : "View only") + ` · <a href="/.auth/logout" class="signout">Sign out</a>`;
-    $("#addBtn").hidden = !state.isOwner;
+    $("#role").innerHTML = (state.isOwner ? "<b>Editor</b>" : "Can book") + ` · <a href="/.auth/logout" class="signout">Sign out</a>`;
+    $("#addBtn").hidden = !state.canBook;
     $("#exportBtn").hidden = false;
     await loadAll();
     if(state.isOwner){ try{ const u = await apiCallRaw("/api/updates"); if(u && (u.pending || u.areas || u.edits)){ state.updates = {pending:u.pending||0, areas:u.areas||0, edits:u.edits||0, names:u.names||[]}; renderSummary(); } }catch(_){} }
