@@ -4,11 +4,16 @@
  *
  *   GET    /api/data/{collection}        list documents   (any signed-in user)
  *   GET    /api/data/{collection}/{id}   one document     (any signed-in user)
- *   PUT    /api/data/{writable}/{id}     create/replace   (editor role)
- *   PATCH  /api/data/{writable}/{id}     merge fields     (editor role)
- *   DELETE /api/data/{writable}/{id}     delete           (editor role)
+ *   PUT    /api/data/{writable}/{id}     create/replace
+ *   PATCH  /api/data/{writable}/{id}     merge fields
+ *   DELETE /api/data/{writable}/{id}     delete
  *
  * Writable collections: reservations, nearby (the restaurant list).
+ * Who can write:
+ *   - nearby (restaurants): editor role only.
+ *   - reservations (bookings): anyone signed in can add one; it is stamped with
+ *     createdBy (their sign-in). Changing or deleting a booking needs the editor
+ *     role or being its creator. createdBy is set here, never taken from the client.
  * Documents include an `etag`. Send it back as an If-Match header on
  * PUT/DELETE to get 412 instead of overwriting someone else's change.
  *
@@ -47,14 +52,23 @@ async function handler(request, context) {
 
     // Everything below is a write.
     if (!WRITABLE.has(collection)) return json(405, { error: 'This collection is read-only' });
-    if (!hasRole(principal, 'editor')) return json(403, { error: 'Editor role required' });
+    const editor = hasRole(principal, 'editor');
+    if (!editor && collection !== 'reservations') return json(403, { error: 'Editor role required' });
     if (id === undefined) return json(400, { error: 'An id is required' });
+    const me = who(principal).toLowerCase();
+    // Editors can change any row; everyone else only bookings they created.
+    const mayChange = (doc) => editor || (!!doc && String(doc.createdBy || '').toLowerCase() === me);
 
     const ifMatch = request.headers.get('if-match') || undefined;
     if (ifMatch && ifMatch.length > 200) return json(400, { error: 'Invalid If-Match header' });
     const clean = CLEANERS[collection];
 
     if (request.method === 'DELETE') {
+      if (!editor) {
+        const existing = await store.get(collection, id);
+        if (!existing) return { status: 204 };
+        if (!mayChange(existing)) return json(403, { error: 'Only the person who added this booking (or an editor) can delete it' });
+      }
       await store.remove(collection, id, { etag: ifMatch });
       context.log(`DELETE ${collection}/${id} by ${who(principal)}`);
       return { status: 204 };
@@ -66,7 +80,13 @@ async function handler(request, context) {
     if (request.method === 'PUT') {
       const checked = clean(body.value);
       if (checked.error) return json(400, { error: checked.error });
-      const saved = await store.put(collection, id, checked.value, who(principal), { etag: ifMatch });
+      let value = checked.value;
+      if (collection === 'reservations') {
+        const existing = await store.get(collection, id);
+        if (existing && !mayChange(existing)) return json(403, { error: 'Only the person who added this booking (or an editor) can change it' });
+        value = { ...value, createdBy: existing ? existing.createdBy || '' : me };   // keep the original creator
+      }
+      const saved = await store.put(collection, id, value, who(principal), { etag: ifMatch });
       context.log(`PUT ${collection}/${id} by ${who(principal)}`);
       return json(200, saved);
     }
@@ -74,6 +94,7 @@ async function handler(request, context) {
     if (request.method === 'PATCH') {
       const existing = await store.get(collection, id);
       if (!existing) return json(404, { error: 'Not found' });
+      if (!mayChange(existing)) return json(403, { error: 'Only the person who added this booking (or an editor) can change it' });
       const checked = clean(body.value, { partial: true });
       if (checked.error) return json(400, { error: checked.error });
       const { id: _drop, etag: readEtag, ...rest } = existing;

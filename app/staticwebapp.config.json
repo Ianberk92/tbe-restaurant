@@ -49,7 +49,7 @@
         "DELETE"
       ],
       "allowedRoles": [
-        "editor"
+        "authenticated"
       ]
     },
     {
